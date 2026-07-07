@@ -1,0 +1,12 @@
+# Environment / secrets
+.env
+
+# Virtual environment
+mentalHealthRag_venv/
+
+# Data (regeneratable, and chroma_db can be large)
+data/chroma_db/
+
+# Python
+__pycache__/
+*.pyc
