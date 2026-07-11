@@ -29,20 +29,20 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-claimsPath = Path("data/evaluation_claims.csv")
-chromaDBPath = Path("data/chroma_db")
-collectionName = "mental_health_corpus"
-resultsPath = Path("evaluation_results.csv")
+claims_path = Path("data/evaluation_claims.csv")
+chromadb_path = Path("data/chroma_db")
+collection_name = "mental_health_corpus"
+results_path = Path("evaluation_results.csv")
 
-embeddingModel = "gemini-embedding-001"
-generationModel = "gemini-2.5-flash" #maximum of 20 request a day
-#generationModel = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits (rerun tomorrow when limit resets)
+embedding_model = "gemini-embedding-001"
+generation_model = "gemini-2.5-flash" #maximum of 20 request a day
+#generation_model = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits (rerun tomorrow when limit resets)
 topK = 8 # number of retrieved chunks to give the LLM per claim
-requestDelaySeconds = 1.0 # for embedding calls (higher limits, ~10M tokens/min)
-generationDelaySeconds = 9.0  # for generation calls (lower limits ~10 RPM quota)
+request_delay_seconds = 1.0 # for embedding calls (higher limits, ~10M tokens/min)
+generation_delay_seconds = 9.0  # for generation calls (lower limits ~10 RPM quota)
 
 
-systemInstructions = """
+system_instructions = """
     You are a research-literature evidence evaluator. You assess whether a treatment-efficacy \
     claim about a mental health condition is supported by the biomedical abstracts provided to you. \
     You are a research synthesis tool, not a source of clinical or personal medical advice.
@@ -90,18 +90,18 @@ def embed_query(client: genai.Client, text:str) -> list[float]:
     Embed a claim as a query, not a document (as done in ChunkEmbed.py
     """
     result = client.models.embed_content(
-        model = embeddingModel,
+        model = embedding_model,
         contents=text,
         config = types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
     )
     return result.embeddings[0].values
 
-def retrieve_evidence(collection, queryEmbedding: list[float], topK: int) -> list[dict]:
+def retrieve_evidence(collection, query_embedding: list[float], topK: int) -> list[dict]:
     """
     Query ChromaDB and return a clean list of evidence chunks with metadata.
     """
     results = collection.query(
-        query_embeddings = [queryEmbedding],
+        query_embeddings = [query_embedding],
         n_results=topK,
         include = ["documents", "metadatas", "distances"]
     )
@@ -117,56 +117,56 @@ def retrieve_evidence(collection, queryEmbedding: list[float], topK: int) -> lis
         })
     return evidence
 
-def build_prompt(claimText: str, evidence: list[dict]) -> str:
+def build_prompt(claim_text: str, evidence: list[dict]) -> str:
     """
     Build the claim and retrieved evidence into one prompt for the LLM.
     """
-    evidenceBlocks = []
+    evidence_groups = []
     for e in evidence:
-        evidenceBlocks.append(
+        evidence_groups.append(
             f"[PubMed ID: {e['pubmed_id']}] ({e['year']}) {e['title']} {e['text']}"
         )
-    evidenceText = "\n\n--\n\n".join(evidenceBlocks)
+    evidence_text = "\n\n--\n\n".join(evidence_groups)
 
     return f"""
     Claim to evaluate:
-    {claimText}
+    {claim_text}
 
     Retrieved evidence:
-    {evidenceText}
+    {evidence_text}
 
     Evaluate the claim against the evidence above, following the system instructions.
     """
     
-def evaluate_claim(client: genai.Client, claimText: str, evidence: list[dict], systemInstructions) -> Verdict:
-    prompt = build_prompt(claimText, evidence)
+def evaluate_claim(client: genai.Client, claim_text: str, evidence: list[dict], system_instructions) -> Verdict:
+    prompt = build_prompt(claim_text, evidence)
 
     response = client.models.generate_content(
-        model=generationModel,
+        model=generation_model,
         contents=prompt,
         config=types.GenerateContentConfig(
-            system_instruction=systemInstructions,
+            system_instruction=system_instructions,
             response_mime_type="application/json",
             response_schema=Verdict
         ),
     )
     return Verdict.model_validate_json(response.text)
     
-def evaluate_claim_with_retry(client, claimText, evidence, systemInstructions, maxRetries=3):
+def evaluate_claim_with_retry(client, claim_text, evidence, system_instructions, max_retries=3):
     """
     Call evaluate_claim(), retrying with progressive backoff if the request
     fails due to a rate limit (RESOURCE_EXHAUSTED) or an  unavailable response rather than a real error.
     Daily quota exhaustion is detected and NOT retried.
     """
-    for attempt in range(maxRetries):
+    for attempt in range(max_retries):
         try:
-            return evaluate_claim(client, claimText, evidence, systemInstructions)
+            return evaluate_claim(client, claim_text, evidence, system_instructions)
         except Exception as e:
             error_text = str(e)
             if "PerDay" in error_text:
                 print("Daily quota exhausted.")
                 raise
-            if ("RESOURCE_EXHAUSTED" in error_text or "UNAVAILABLE" in error_text) and attempt < maxRetries - 1:
+            if ("RESOURCE_EXHAUSTED" in error_text or "UNAVAILABLE" in error_text) and attempt < max_retries - 1:
                 waitSeconds = 30 * (attempt + 1)
                 print(f"  Rate limited or server overloaded, waiting {waitSeconds}s before retry...")
                 time.sleep(waitSeconds)
@@ -175,25 +175,25 @@ def evaluate_claim_with_retry(client, claimText, evidence, systemInstructions, m
 def normalize_pmid(pmid: str) -> str:
     return pmid.replace("PMID:", "").replace("PMID", "").strip()
 
-def get_validated_response(client, claimID, claimText, evidence, retrievedPMIDs, system_instructions, retries: int = 0):
+def get_validated_response(client, claim_id, claim_text, evidence, retrieved_pmids, system_instructions, retries: int = 0):
     """
     Check the citations returned by the model against the retrieved evidence,
     and retries the evaluation if hallucinated citations are found.
     """
-    maxRetries = 2
+    max_retries = 2
     while True:
     
-        result = evaluate_claim_with_retry(client, claimText, evidence, system_instructions)
+        result = evaluate_claim_with_retry(client, claim_text, evidence, system_instructions)
         
         cited_pmids_normalized = {normalize_pmid(p) for p in result.citations}
-        retrieved_pmids_normalized = {normalize_pmid(p) for p in retrievedPMIDs}
+        retrieved_pmids_normalized = {normalize_pmid(p) for p in retrieved_pmids}
         hallucinated_citations = cited_pmids_normalized - retrieved_pmids_normalized
 
         if not hallucinated_citations:
             return result, hallucinated_citations
         
-        if retries >= maxRetries:
-            print(f"WARNING: claim {claimID} cited PubMed Ids not in retrieved evidence: {hallucinated_citations}.")
+        if retries >= max_retries:
+            print(f"WARNING: claim {claim_id} cited PubMed Ids not in retrieved evidence: {hallucinated_citations}.")
             return result, hallucinated_citations
 
         correction_instructions = (
@@ -201,70 +201,69 @@ def get_validated_response(client, claimID, claimText, evidence, retrievedPMIDs,
             f"You may only cite PubMed IDs found in the evidence provided."
             f"Reassess the claim using only the evidence given."
         ) 
-        system_instructions = systemInstructions + correction_instructions
+        system_instructions = system_instructions + correction_instructions
         retries += 1
 
 
 
 def main():
-    apiKey = os.environ.get("GEMINI_API_KEY")
-    if not apiKey:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
         raise RuntimeError(
             "GEMINI_API_KEY variable not set."
-            "Run: export GEMINI_API_KEY={input key here}"
         )
     
-    client = genai.Client(api_key=apiKey)
+    client = genai.Client(api_key=api_key)
 
-    chromaClient = chromadb.PersistentClient(path=str(chromaDBPath))
-    collection = chromaClient.get_or_create_collection(name=collectionName)
-    print(f"Loaded ChromaDB collection '{collectionName}' with {collection.count()} records.")
+    chroma_client = chromadb.PersistentClient(path=str(chromadb_path))
+    collection = chroma_client.get_or_create_collection(name=collection_name)
+    print(f"Loaded ChromaDB collection '{collection_name}' with {collection.count()} records.")
 
-    claims = load_claims(claimsPath)
+    claims = load_claims(claims_path)
     #temp variable to test on a reduced set of the claims
     claims = claims[:5]
     print(f"Testing on a reduced set of {len(claims)} claims")
-    #print(f"Loaded {len(claims)} claims from {claimsPath}")
+    #print(f"Loaded {len(claims)} claims from {claims_path}")
 
-    alreadyDone = load_existing_results(resultsPath)
-    print(f"Loaded {len(alreadyDone)} claims already evaluated in a previous run.")
+    already_done = load_existing_results(results_path)
+    print(f"Loaded {len(already_done)} claims already evaluated in a previous run.")
 
-    writeHeader = not resultsPath.exists()
-    with open(resultsPath, "a", newline="", encoding="utf-8") as f:
-        fieldNames = [
+    write_header = not results_path.exists()
+    with open(results_path, "a", newline="", encoding="utf-8") as f:
+        field_names = [
             "id", "condition", "treatment", "claim", "phrasing_type", "category", "expected_verdict",
             "actual_verdict", "actual_explanation", "actual_citations", "actual_confidence", "match",
             "hallucinated_citations", "notes"
         ]
-        writer = csv.DictWriter(f, fieldnames=fieldNames, quoting=csv.QUOTE_MINIMAL)
-        if writeHeader:
+        writer = csv.DictWriter(f, fieldnames=field_names, quoting=csv.QUOTE_MINIMAL)
+        if write_header:
             writer.writeheader()
 
         for claim in claims:
-            claimId = claim["id"]
-            if claimId in alreadyDone:
+            claim_id = claim["id"]
+            if claim_id in already_done:
                 continue # skip records that have already been evaluated.
 
-            print(f"Evaluating claim {claimId}: {claim['claim'][:70]}...")
+            print(f"Evaluating claim {claim_id}: {claim['claim'][:70]}...")
             try:
-                queryEmbedding = embed_query(client, claim['claim'])
-                time.sleep(requestDelaySeconds)
-                evidence = retrieve_evidence(collection, queryEmbedding, topK)
-                retrievedPMIDs = {e['pubmed_id'] for e in evidence}
+                query_embedding = embed_query(client, claim['claim'])
+                time.sleep(request_delay_seconds)
+                evidence = retrieve_evidence(collection, query_embedding, topK)
+                retrieved_pmids = {e['pubmed_id'] for e in evidence}
                 # Get validated evaluation results
-                result, hallucinatedCitations = get_validated_response(client, claim["id"], claim["claim"], evidence, retrievedPMIDs, systemInstructions)
+                result, hallucinatedCitations = get_validated_response(client, claim["id"], claim["claim"], evidence, retrieved_pmids, system_instructions)
             except Exception as e:
-                print(f"Error evaluating claim {claimId}: {e}")
+                print(f"Error evaluating claim {claim_id}: {e}")
                 continue
                 
-            time.sleep(generationDelaySeconds)
+            time.sleep(generation_delay_seconds)
 
             
             expected = claim["expected_verdict"]
             match = "N/A - TBD expected" if "TBD" in expected else str(expected.strip() == result.verdict.strip())
 
             writer.writerow({
-                "id": claimId,
+                "id": claim_id,
                 "condition": claim["condition"],
                 "treatment": claim["treatment"],
                 "claim": claim["claim"],
@@ -283,7 +282,7 @@ def main():
 
             print(f"{result.verdict} (expected: {expected})")
 
-        print(f"\nDone. Results written to {resultsPath}")
+        print(f"\nDone. Results written to {results_path}")
 
 
 if __name__ == "__main__":

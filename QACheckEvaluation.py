@@ -13,7 +13,7 @@ Compute quantitative metrics on evaluation_results.csv:
 import pandas as pd
 from pathlib import Path
 
-resultsPath = Path("data/evaluation_results_v1.csv")
+results_path = Path("data/evaluation_results_v1.csv")
 
 
 def load_results(path:Path) -> pd.DataFrame:
@@ -103,21 +103,21 @@ def get_mismatches(df:pd.DataFrame) -> pd.DataFrame:
 
 def main():
 
-    df = load_results(resultsPath)
+    df = load_results(results_path)
     scored = get_scored_subset(df)
     print(f"Loaded {len(df)} evaluated claims.")
 
-    summaryRows = []
-    summaryRows.append(match_rate_overall(scored))
-    summaryRows.extend(match_rate_by_column(scored, "phrasing_type"))
-    summaryRows.extend(match_rate_by_column(scored, "category"))
-    summaryRows.extend(confidence_distribution(df))
-    summaryRows.extend(verdict_distribution(df))
-    summaryRows.append(hallucinated_citation_count(df))
+    summary_rows = []
+    summary_rows.append(match_rate_overall(scored))
+    summary_rows.extend(match_rate_by_column(scored, "phrasing_type"))
+    summary_rows.extend(match_rate_by_column(scored, "category"))
+    summary_rows.extend(confidence_distribution(df))
+    summary_rows.extend(verdict_distribution(df))
+    summary_rows.append(hallucinated_citation_count(df))
 
     Path("data/evaluation").mkdir(parents=True, exist_ok=True)
 
-    summarydf = pd.DataFrame(summaryRows)
+    summarydf = pd.DataFrame(summary_rows)
     summaryPath = Path("data/evaluation/evaluation_summary.csv")
     summarydf.to_csv(summaryPath, index=False)
     print(f"Wrote summary ({len(summarydf)} rows) to {summaryPath}")

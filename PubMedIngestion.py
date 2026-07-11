@@ -14,10 +14,10 @@ from pathlib import Path
 """
  Define search terms
  Each tuple contains (condition, treatment, needs_qualifier)
- needsQualifier - True adds an extract "(treatment OR intervention OR therapy)" clause to the search query.
+ needs_qualifier - True adds an extract "(treatment OR intervention OR therapy)" clause to the search query.
     used only for broad search terms like exercise that were shown in QA to have mutiple irrelevant results.
 """
-SEARCH_TERMS = [
+search_terms = [
     ("generalized anxiety disorder", "cognitive behavioral therapy", False),
     ("generalized anxiety disorder", "SSRI", False),
     ("generalized anxiety disorder", "SNRI", False),
@@ -54,16 +54,16 @@ results_per_query = 40
 output_path = Path("data/raw_abstracts.json") # Output file path
 request_delay = 0.4 #NCBI allows <=3 requests per second without an API key, this will set a delay of 0.4 seconds between requests to avoid hitting the limit
 
-ESEARCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+esearch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+efetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
 
-def search_pubmedIDs(condition: str, treatment: str, retmax: int, needsQualifier: bool = False) -> list[str]:
+def search_pubmedIDs(condition: str, treatment: str, retmax: int, needs_qualifier: bool = False) -> list[str]:
     """
     Search PubMed for a condition/treatment pair, return a list of matching PubMed IDs.
-    If needsQualifier is True, restrict results to those that also mention treatment/intervention/therapy. - used to reduce topical drift for broad terms (excerise).
+    If needs_qualifier is True, restrict results to those that also mention treatment/intervention/therapy. - used to reduce topical drift for broad terms (excerise).
     """
-    if needsQualifier:
+    if needs_qualifier:
         query = f'{condition} AND "{treatment}" AND (treatment OR intervention OR therapy)'
     else:  
         query = f'{condition} AND "{treatment}"'
@@ -74,7 +74,7 @@ def search_pubmedIDs(condition: str, treatment: str, retmax: int, needsQualifier
         "retmax": retmax,
         "retmode": "json"
     }
-    response = requests.get(ESEARCH_URL, params=params, timeout=30)
+    response = requests.get(esearch_url, params=params, timeout=30)
     response.raise_for_status()
     pubmed_ids = response.json()
     return pubmed_ids.get("esearchresult", {}).get("idlist", [])
@@ -97,7 +97,7 @@ def fetch_abstracts(pubmed_ids: list[str]) -> list[dict]:
         "rettype": "abstract",
         "retmode": "xml"
     }
-    response = requests.get(EFETCH_URL, params=params, timeout=30)
+    response = requests.get(efetch_url, params=params, timeout=30)
     response.raise_for_status()
     # Parse the XML response into a element tree for easier navigation
     root = ET.fromstring(response.content)
@@ -133,9 +133,9 @@ def main():
     # keyed by PubMed ID to deduplicate records
     all_records = {}
 
-    for condition, treatment, needsQualifier in SEARCH_TERMS:
+    for condition, treatment, needs_qualifier in search_terms:
         print(f"Searching: {condition} + {treatment} ...")
-        pubmed_ids = search_pubmedIDs(condition, treatment, results_per_query, needsQualifier)
+        pubmed_ids = search_pubmedIDs(condition, treatment, results_per_query, needs_qualifier)
         time.sleep(request_delay)  # Delay to avoid hitting NCBI request limit
         print(f"Found {len(pubmed_ids)} PubMed IDs for {condition} + {treatment}. Fetching abstracts...")
         records = fetch_abstracts(pubmed_ids)
@@ -144,7 +144,7 @@ def main():
         for record in records:
             record["search_condition"] = condition
             record["search_treatment"] = treatment
-            record["needs_qualifier"] = needsQualifier
+            record["needs_qualifier"] = needs_qualifier
             all_records[record["pubmed_id"]] = record # Overwrite = audtomatic dedupe by pubmed id
 
         print(f"Retrieved {len(records)} abstracts with text (running total: {len(all_records)})")
@@ -159,4 +159,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# %%
+
