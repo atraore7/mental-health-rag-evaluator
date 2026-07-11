@@ -41,6 +41,7 @@ topK = 8 # number of retrieved chunks to give the LLM per claim
 requestDelaySeconds = 1.0 # for embedding calls (higher limits, ~10M tokens/min)
 generationDelaySeconds = 9.0  # for generation calls (lower limits ~10 RPM quota)
 
+
 systemInstructions = """
     You are a research-literature evidence evaluator. You assess whether a treatment-efficacy \
     claim about a mental health condition is supported by the biomedical abstracts provided to you. \
@@ -137,7 +138,7 @@ def build_prompt(claimText: str, evidence: list[dict]) -> str:
     Evaluate the claim against the evidence above, following the system instructions.
     """
     
-def evaluate_claim(client: genai.Client, claimText: str, evidence: list[dict]) -> Verdict:
+def evaluate_claim(client: genai.Client, claimText: str, evidence: list[dict], systemInstructions) -> Verdict:
     prompt = build_prompt(claimText, evidence)
 
     response = client.models.generate_content(
@@ -151,15 +152,15 @@ def evaluate_claim(client: genai.Client, claimText: str, evidence: list[dict]) -
     )
     return Verdict.model_validate_json(response.text)
     
-def evaluate_claim_with_retry(client, claimText, evidence, maxRetries=3):
+def evaluate_claim_with_retry(client, claimText, evidence, systemInstructions, maxRetries=3):
     """
     Call evaluate_claim(), retrying with progressive backoff if the request
     fails due to a rate limit (RESOURCE_EXHAUSTED) or an  unavailable response rather than a real error.
-    Daily quota exhaustion is detected and NOT retried
+    Daily quota exhaustion is detected and NOT retried.
     """
     for attempt in range(maxRetries):
         try:
-            return evaluate_claim(client, claimText, evidence)
+            return evaluate_claim(client, claimText, evidence, systemInstructions)
         except Exception as e:
             error_text = str(e)
             if "PerDay" in error_text:
@@ -171,6 +172,38 @@ def evaluate_claim_with_retry(client, claimText, evidence, maxRetries=3):
                 time.sleep(waitSeconds)
             else:
                 raise
+def normalize_pmid(pmid: str) -> str:
+    return pmid.replace("PMID:", "").replace("PMID", "").strip()
+
+def get_validated_response(client, claimID, claimText, evidence, retrievedPMIDs, system_instructions, retries: int = 0):
+    """
+    Check the citations returned by the model against the retrieved evidence,
+    and retries the evaluation if hallucinated citations are found.
+    """
+    maxRetries = 2
+    while True:
+    
+        result = evaluate_claim_with_retry(client, claimText, evidence, system_instructions)
+        
+        cited_pmids_normalized = {normalize_pmid(p) for p in result.citations}
+        retrieved_pmids_normalized = {normalize_pmid(p) for p in retrievedPMIDs}
+        hallucinated_citations = cited_pmids_normalized - retrieved_pmids_normalized
+
+        if not hallucinated_citations:
+            return result, hallucinated_citations
+        
+        if retries >= maxRetries:
+            print(f"WARNING: claim {claimID} cited PubMed Ids not in retrieved evidence: {hallucinated_citations}.")
+            return result, hallucinated_citations
+
+        correction_instructions = (
+            f"The results you return contained the following hallucenated citations: {hallucinated_citations}."
+            f"You may only cite PubMed IDs found in the evidence provided."
+            f"Reassess the claim using only the evidence given."
+        ) 
+        system_instructions = systemInstructions + correction_instructions
+        retries += 1
+
 
 
 def main():
@@ -188,7 +221,10 @@ def main():
     print(f"Loaded ChromaDB collection '{collectionName}' with {collection.count()} records.")
 
     claims = load_claims(claimsPath)
-    print(f"Loaded {len(claims)} claims from {claimsPath}")
+    #temp variable to test on a reduced set of the claims
+    claims = claims[:5]
+    print(f"Testing on a reduced set of {len(claims)} claims")
+    #print(f"Loaded {len(claims)} claims from {claimsPath}")
 
     alreadyDone = load_existing_results(resultsPath)
     print(f"Loaded {len(alreadyDone)} claims already evaluated in a previous run.")
@@ -214,23 +250,15 @@ def main():
                 queryEmbedding = embed_query(client, claim['claim'])
                 time.sleep(requestDelaySeconds)
                 evidence = retrieve_evidence(collection, queryEmbedding, topK)
-                result = evaluate_claim_with_retry(client, claim["claim"], evidence)
+                retrievedPMIDs = {e['pubmed_id'] for e in evidence}
+                # Get validated evaluation results
+                result, hallucinatedCitations = get_validated_response(client, claim["id"], claim["claim"], evidence, retrievedPMIDs, systemInstructions)
             except Exception as e:
                 print(f"Error evaluating claim {claimId}: {e}")
                 continue
                 
             time.sleep(generationDelaySeconds)
 
-            """
-            Citation validation - confirm every cited PubMed ID was actually part of the retreived evidence given to the model.
-            A citation naming a PubMed ID outside this set is a hallucination the model invent or misremembered a source rather than 
-                citing something that was shown
-            """
-            retrievedPMIDs = {e["pubmed_id"] for e in evidence}
-            citedPMIDs = set(result.citations)
-            hallucinatedCitations = citedPMIDs - retrievedPMIDs
-            if hallucinatedCitations:
-                print(f"WARNING: claim {claimId} cited PubMed Ids not in retrieved evidence: {hallucinatedCitations}")
             
             expected = claim["expected_verdict"]
             match = "N/A - TBD expected" if "TBD" in expected else str(expected.strip() == result.verdict.strip())
