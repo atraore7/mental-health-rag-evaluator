@@ -1,24 +1,10 @@
 [
   {
-    "pubmed_id":41628751,
-    "title":"Efficacy of a portable BLT device on sleep and depressive symptoms in major depressive disorder: A double-blind randomized study.",
+    "pubmed_id":40705857,
+    "title":"Light therapy for bipolar disorders: Clinical recommendations from the international society for bipolar disorders (ISBD) Chronobiology and Chronotherapy Task Force.",
     "search_condition":"major depressive disorder",
     "search_treatment":"light therapy",
-    "abstract":"Major depressive disorder (MDD) is a leading cause of disability worldwide and is often associated with anxiety and sleep disturbances. About one-third of patients do not achieve adequate response to pharmacological treatments, underscoring the need for adjunctive non-pharmacological therapies. Bright light therapy (BLT) has shown efficacy in MDD, but conventional devices require patients to remai..."
-  },
-  {
-    "pubmed_id":41467025,
-    "title":"Novel and emerging physical treatments for major depressive disorder.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Major depressive disorder (MDD), a widespread psychiatric disease with significant impacts on neurological functioning and quality of life, affects 4.4% of the global population. Despite the availability of various treatments, including antidepressants and cognitive behavioral therapy, approximately 50% of patients with MDD exhibit inadequate responses, leading to treatment-resistant depression (T..."
-  },
-  {
-    "pubmed_id":41101469,
-    "title":"Effect of photobiomodulation intervention for depressive symptoms: A systematic review and meta-analysis.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Although photobiomodulation (PBM) has been investigated as a non-invasive treatment for reducing depressive symptoms, its effectiveness and optimal treatment settings remain unknown. This meta-analysis assessed the overall impact of PBM on depressive symptoms and analyzed significant moderators affecting treatment outcomes. We systematically reviewed 18 PBM intervention trials including individual..."
+    "abstract":"The International Society for Bipolar Disorders (ISBD) Chronobiology and Chronotherapy Task Force conducted a comprehensive review to deliver concise evidence-based recommendations on the use of bright light therapy (BLT) for bipolar disorder (BD). Adjunctive BLT is likely an efficacious acute treatment for bipolar depression as implicated by higher quality evidence. The position of maintenance BL..."
   },
   {
     "pubmed_id":39961441,
@@ -28,102 +14,18 @@
     "abstract":"Medication-supplemented psychotherapy is the primary treatment for mild major depressive disorder (MDD). However, limited resources and patient non-adherence present challenges, necessitating innovative and less burdensome interventions. This study aimed to compare the effectiveness of active and placebo violet light irradiation goggles for treating mild MDD. The present study was a randomized, do..."
   },
   {
-    "pubmed_id":42097096,
-    "title":"Effects of light therapy on depression, anxiety and sleep quality in mental disorders: A systematic review and meta-analysis.",
+    "pubmed_id":41900968,
+    "title":"Bright Light Therapy in Psychiatric Disorders: Mechanisms, Clinical Procedures and Evidence.",
     "search_condition":"major depressive disorder",
     "search_treatment":"light therapy",
-    "abstract":"Light therapy (LT) has become a frequently used treatment method for treating emotional disturbance (depression and anxiety) and sleep disorders due to its convenience, safety and low cost. Previous studies discovered that light, sleep and mood are closely related. The whole process followed PRISMA 2020, all studies were searched in 5 databases from January 1st 2020 to June 30th 2025. The quality ..."
+    "abstract":"Light is the primary zeitgeber for circadian rhythms, and also through these mechanisms, is closely related to mood regulation. Bright light therapy (BLT) is a therapeutic intervention that specifically exploits this physiological mechanism. This review summarizes the clinical procedures of BLT, the mechanisms through which light influences circadian rhythms and mood, and the evidence supporting B..."
   },
   {
-    "pubmed_id":41284534,
-    "title":"Establishing Triple Chronotherapy as a fast-acting add-on treatment for unipolar and bipolar depression: evidence from an open-label randomized controlled trial in a real-world inpatient setting.",
+    "pubmed_id":40437278,
+    "title":"Dose-dependent tolerability and safety of transcranial photobiomodulation: a randomized controlled trial.",
     "search_condition":"major depressive disorder",
     "search_treatment":"light therapy",
-    "abstract":"Despite established treatments like cognitive-behavioral therapy and antidepressants, response rates remain suboptimal during depressive episodes, with delayed onset of action. Circadian rhythm disturbances are closely linked to mood disorders, and chronotherapeutic interventions, including Sleep Deprivation, Sleep Phase Advance, and Bright Light Therapy, have shown promise in rapidly alleviating ..."
-  },
-  {
-    "pubmed_id":41144313,
-    "title":"Adjunctive Triple Chronotherapy in the Treatment of Adolescent Major Depressive Disorder: A Randomized Controlled Pilot Trial.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"This randomized controlled pilot trial examined whether adjunctive triple chronotherapy (TCT) in adolescents hospitalized with major depressive disorder (MDD) was (1) feasible, and (2) suggested to be more effective in managing depression and accompanying symptoms at 60 days postdischarge, compared to adolescents with depression who received treatment-as-usual (TAU). TCT participants underwent sle..."
-  },
-  {
-    "pubmed_id":40035835,
-    "title":"The effect of bright light therapy on sleep in pregnant women with major depressive disorder- a randomized controlled trial.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Bright light therapy (BLT) is a potential treatment for depression during pregnancy, which may also improve sleep. We investigated whether BLT has an effect on self-reported and actigraphy-estimated sleep in pregnant women diagnosed with depressive disorder. Sixty-seven pregnant women with a DSM-5 diagnosis of depressive disorder during pregnancy were randomly allocated to treatment with BLT (9,00..."
-  },
-  {
-    "pubmed_id":41667835,
-    "title":"Connectome-based growth models reveal individual heterogeneity and neurophysiological subtypes of subthreshold depression.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Subthreshold depression (StD) confers a high risk for major depression and is characterized by substantial individual clinical heterogeneity. However, the neurobiological substrates underlying this heterogeneity remain largely unknown. Using a large multisite resting-state functional MRI dataset including 1203 healthy participants and 197 individuals with StD, we constructed connectome-based norma..."
-  },
-  {
-    "pubmed_id":41401997,
-    "title":"Adjunctive bright light therapy to enhance continuous positive airway pressure adherence in patients with comorbid major depressive disorder and obstructive sleep apnoea syndrome: study protocol for a randomised sham-controlled trial.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Obstructive sleep apnoea syndrome (OSAS) co-occurs with major depressive disorder (MDD) in approximately 50% of cases, and this comorbidity is associated with greater severity of depressive symptoms, sleep disturbances and poorer clinical outcomes. Although continuous positive airway pressure (CPAP) therapy is effective in treating OSAS and alleviating symptoms of MDD, poor adherence during the in..."
-  },
-  {
-    "pubmed_id":42395431,
-    "title":"Altered Lighting Conditions Elicit Sex-Specific Circadian Behaviors in Diurnal Grass Rats.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Circadian rhythms are crucial to biological functions, and cognitive functions such as attention, choice, and preference-related behaviors are modulated by circadian rhythms and disrupted in mood disorders such as Seasonal Affective Disorder (SAD) and Major Depressive Disorder (MDD). These neuropsychiatric diseases can be induced or worsened by alterations to daily light patterns and can also be t..."
-  },
-  {
-    "pubmed_id":39657294,
-    "title":"Efficacy of bright light therapy improves outcomes of perinatal depression: A systematic review and meta-analysis of randomized controlled trials.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"The efficacy of bright light therapy (BLT) in the context of perinatal depression remains underexplored. This meta-analysis aimed to systematically assess the effectiveness of BLT among perinatal depression. A comprehensive literature search was performed across several databases, including the Cochrane Central Register of Controlled Trials, PubMed, Embase, CNKI and the clinical trials registry pl..."
-  },
-  {
-    "pubmed_id":41903946,
-    "title":"Preliminary evidence that blood extracellular nicotinamide phosphoribosyltransferase increases with antidepressant response to chronotherapeutics and to monoaminergic drugs.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"The purpose of the present study is to provide a preliminary evidence of the possible involvement of extracellular nicotinamide phosphoribosyltransferase (eNAMPT) in antidepressant response. NAMPT is the major regulator of the cellular availability of nicotinamide adenine dinucleotide (NAD+), and, when released from the cells, it influences activity, energy expenditure, and neurotransmitter levels..."
-  },
-  {
-    "pubmed_id":41887006,
-    "title":"Chronotherapy shortens hospitalization for bipolar depression: a single-center replication across three decades (1994-2024).",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Chronotherapeutic interventions have been proposed as non-pharmacological strategies for the rapid modulation of depressive symptoms in bipolar disorder. Total sleep deprivation (TSD) may induce short-term mood improvements, and morning bright light therapy (BLT) has been suggested to help stabilize these effects. However, the impact of these interventions on service-level outcomes, including leng..."
-  },
-  {
-    "pubmed_id":42150833,
-    "title":"Clinical efficacy, safety and applicability of home-based bright light therapy in outpatient adolescents with major depressive disorder in China: protocol for a randomised controlled trial.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Major depressive disorder (MDD) is a leading cause of disability among adolescents, yet available treatments remain limited. Bright light therapy (BLT) is a non-pharmacological intervention with demonstrated efficacy in adults. However, its clinical utility and underlying neural mechanisms in adolescents remain unclear. This trial aims to evaluate the clinical efficacy, time to onset, safety and a..."
-  },
-  {
-    "pubmed_id":41487848,
-    "title":"Patient Attitudes About Light Therapy and Negative Ion Therapy for Nonseasonal Depression: An Online Survey Study.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"No studies have evaluated the feasibility of light therapy or negative ion therapy as maintenance treatments after acute antidepressant treatment in major depressive disorder. To address this gap, we surveyed people with depression about their knowledge and attitudes about light therapy and negative ion therapy, and their willingness to participate in a clinical trial of maintenance treatment with..."
-  },
-  {
-    "pubmed_id":41956988,
-    "title":"Role of neural oscillations in depression: highlights on gamma oscillations.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"Depression is a prevalent and debilitating psychiatric disorder traditionally conceptualized as monoaminergic dysregulation. Although this view has guided pharmacotherapeutic development for decades, its clinical and mechanistic limitations have spurred research into alternative frameworks, particularly those focusing on network-level dysfunctions. Within this evolving framework, neural oscillatio..."
-  },
-  {
-    "pubmed_id":40012529,
-    "title":"Antidepressant efficacy of administering repetitive transcranial magnetic stimulation (rTMS) with psychological and other non-pharmacological methods: a scoping review and meta-analysis.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"light therapy",
-    "abstract":"To optimize the antidepressant efficacy of repetitive transcranial magnetic stimulation (rTMS), it is important to examine the impact of brain state during therapeutic rTMS. Evidence suggests that brain state can modulate the brain's response to stimulation, potentially diminishing antidepressant efficacy if left uncontrolled or enhancing it with inexpensive psychological or other non-pharmacologi..."
+    "abstract":"Transcranial photobiomodulation (t-PBM) with near-infrared (NIR) light has emerged as a promising therapy for major depressive disorder (MDD). However, the dose-dependent tolerability of t-PBM has not been adequately explored. This secondary analysis of a sham-controlled clinical trial evaluated the safety and tolerability of t-PBM across varying doses in 31 subjects with MDD. Participants were ra..."
   },
   {
     "pubmed_id":39706483,
@@ -133,10 +35,108 @@
     "abstract":"Device-based treatments exist in psychiatry for decades, but are usually operated by clinicians and require multiple office visits. Near-infrared transcranial photobiomodulation (tPBM) is a safe neurostimulation modality with potential antidepressant and hypnotic effects. We investigated the feasibility and efficacy of adjunctive tPBM treatment, self-administered by a wearable headband. We randomi..."
   },
   {
-    "pubmed_id":40437278,
-    "title":"Dose-dependent tolerability and safety of transcranial photobiomodulation: a randomized controlled trial.",
+    "pubmed_id":41101469,
+    "title":"Effect of photobiomodulation intervention for depressive symptoms: A systematic review and meta-analysis.",
     "search_condition":"major depressive disorder",
     "search_treatment":"light therapy",
-    "abstract":"Transcranial photobiomodulation (t-PBM) with near-infrared (NIR) light has emerged as a promising therapy for major depressive disorder (MDD). However, the dose-dependent tolerability of t-PBM has not been adequately explored. This secondary analysis of a sham-controlled clinical trial evaluated the safety and tolerability of t-PBM across varying doses in 31 subjects with MDD. Participants were ra..."
+    "abstract":"Although photobiomodulation (PBM) has been investigated as a non-invasive treatment for reducing depressive symptoms, its effectiveness and optimal treatment settings remain unknown. This meta-analysis assessed the overall impact of PBM on depressive symptoms and analyzed significant moderators affecting treatment outcomes. We systematically reviewed 18 PBM intervention trials including individual..."
+  },
+  {
+    "pubmed_id":39657294,
+    "title":"Efficacy of bright light therapy improves outcomes of perinatal depression: A systematic review and meta-analysis of randomized controlled trials.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"The efficacy of bright light therapy (BLT) in the context of perinatal depression remains underexplored. This meta-analysis aimed to systematically assess the effectiveness of BLT among perinatal depression. A comprehensive literature search was performed across several databases, including the Cochrane Central Register of Controlled Trials, PubMed, Embase, CNKI and the clinical trials registry pl..."
+  },
+  {
+    "pubmed_id":41721935,
+    "title":"Transcranial Photobiomodulation Modulates Oxidative Stress Biomarkers and Complex IV Activity in Anhedonic-Like Behavior.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Major depressive disorder (MDD) is a prevalent and complex condition with limited treatment success in many patients. Photobiomodulation (PBM), particularly transcranial PBM (tPBM) using red to near-infrared light, has emerged as a promising non-invasive intervention. However, optimal parameters and precise mechanisms remain unclear. This research aimed to analyze the effects of transcranial photo..."
+  },
+  {
+    "pubmed_id":42345840,
+    "title":"Temporal Dynamics of Sleep During Bright-Light Therapy for Depression and Their Relation to Symptom Improvement.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Sleep disturbance is a central feature of depression and a proposed pathway through which Bright-Light Therapy (BLT) exerts antidepressant effects. However, little is known about how sleep reorganises day by day during BLT or whether these dynamics relate to symptom improvement. We analysed daily sleep diaries from 66 patients with depression undergoing three weeks of BLT in routine outpatient car..."
+  },
+  {
+    "pubmed_id":40056640,
+    "title":"Increased sleep duration and emotional regulation in patients with major depressive episodes.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Increased total sleep duration complaint is frequently associated with psychiatric disorders. The daytime impact of sleep disorders is directly linked to the management of emotions and behaviors. Complaints of increased total sleep duration in major depressive disorder (MDE) could be a factor in the disruption of emotional regulation, which belongs to specific, atypical and often more severe clini..."
+  },
+  {
+    "pubmed_id":42205995,
+    "title":"Comparative efficacy of non-pharmacological therapies in adolescents with subthreshold depression: a systematic review and network meta-analysis.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Subthreshold depression (SD) is highly prevalent in adolescents and young adults aged 11-25 years, leading to impaired psychosocial functioning and a high risk of progression to major depressive disorder (MDD). Non-pharmacological therapies are the mainstay of intervention for adolescent SD, yet the comparative efficacy of different interventions remains unclear. This study aimed to compare the re..."
+  },
+  {
+    "pubmed_id":41903946,
+    "title":"Preliminary evidence that blood extracellular nicotinamide phosphoribosyltransferase increases with antidepressant response to chronotherapeutics and to monoaminergic drugs.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"The purpose of the present study is to provide a preliminary evidence of the possible involvement of extracellular nicotinamide phosphoribosyltransferase (eNAMPT) in antidepressant response. NAMPT is the major regulator of the cellular availability of nicotinamide adenine dinucleotide (NAD+), and, when released from the cells, it influences activity, energy expenditure, and neurotransmitter levels..."
+  },
+  {
+    "pubmed_id":41628751,
+    "title":"Efficacy of a portable BLT device on sleep and depressive symptoms in major depressive disorder: A double-blind randomized study.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Major depressive disorder (MDD) is a leading cause of disability worldwide and is often associated with anxiety and sleep disturbances. About one-third of patients do not achieve adequate response to pharmacological treatments, underscoring the need for adjunctive non-pharmacological therapies. Bright light therapy (BLT) has shown efficacy in MDD, but conventional devices require patients to remai..."
+  },
+  {
+    "pubmed_id":41667835,
+    "title":"Connectome-based growth models reveal individual heterogeneity and neurophysiological subtypes of subthreshold depression.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Subthreshold depression (StD) confers a high risk for major depression and is characterized by substantial individual clinical heterogeneity. However, the neurobiological substrates underlying this heterogeneity remain largely unknown. Using a large multisite resting-state functional MRI dataset including 1203 healthy participants and 197 individuals with StD, we constructed connectome-based norma..."
+  },
+  {
+    "pubmed_id":42072654,
+    "title":"Metabolomic Profiling of Extracellular Vesicles Reveals Distinct Metabolic Dysregulation and Treatment-Specific Signatures in Depression.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Major depressive disorder (MDD) is associated with complex metabolic alterations. In this study, we applied a multiplatform metabolomics approach (GC-MS and LC-MS) to characterize the plasma extracellular vesicle (EV) metabolome in healthy controls (N = 50), responsive MDD patients (N = 60), and patients with treatment-resistant depression (TRD; N = 65). Longitudinal analyses were performed follow..."
+  },
+  {
+    "pubmed_id":42395431,
+    "title":"Altered Lighting Conditions Elicit Sex-Specific Circadian Behaviors in Diurnal Grass Rats.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Circadian rhythms are crucial to biological functions, and cognitive functions such as attention, choice, and preference-related behaviors are modulated by circadian rhythms and disrupted in mood disorders such as Seasonal Affective Disorder (SAD) and Major Depressive Disorder (MDD). These neuropsychiatric diseases can be induced or worsened by alterations to daily light patterns and can also be t..."
+  },
+  {
+    "pubmed_id":41401997,
+    "title":"Adjunctive bright light therapy to enhance continuous positive airway pressure adherence in patients with comorbid major depressive disorder and obstructive sleep apnoea syndrome: study protocol for a randomised sham-controlled trial.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Obstructive sleep apnoea syndrome (OSAS) co-occurs with major depressive disorder (MDD) in approximately 50% of cases, and this comorbidity is associated with greater severity of depressive symptoms, sleep disturbances and poorer clinical outcomes. Although continuous positive airway pressure (CPAP) therapy is effective in treating OSAS and alleviating symptoms of MDD, poor adherence during the in..."
+  },
+  {
+    "pubmed_id":41887006,
+    "title":"Chronotherapy shortens hospitalization for bipolar depression: a single-center replication across three decades (1994-2024).",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Chronotherapeutic interventions have been proposed as non-pharmacological strategies for the rapid modulation of depressive symptoms in bipolar disorder. Total sleep deprivation (TSD) may induce short-term mood improvements, and morning bright light therapy (BLT) has been suggested to help stabilize these effects. However, the impact of these interventions on service-level outcomes, including leng..."
+  },
+  {
+    "pubmed_id":41467025,
+    "title":"Novel and emerging physical treatments for major depressive disorder.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Major depressive disorder (MDD), a widespread psychiatric disease with significant impacts on neurological functioning and quality of life, affects 4.4% of the global population. Despite the availability of various treatments, including antidepressants and cognitive behavioral therapy, approximately 50% of patients with MDD exhibit inadequate responses, leading to treatment-resistant depression (T..."
+  },
+  {
+    "pubmed_id":39614605,
+    "title":"Role of Sleep in Depressive Disorders and the Potential Therapeutic Role of Short-Term Sleep Deprivation and Light Therapy: A Review.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"light therapy",
+    "abstract":"Depression affects about 280 million people globally and is marked by persistent sadness and impaired daily functioning. Sleep disturbances are prevalent in major depressive disorder, affecting roughly 90% of patients, and are linked to the severity and progression of depression. This review emphasizes the critical role of sleep in depressive disorders and evaluates the alternative treatments brig..."
   }
 ]

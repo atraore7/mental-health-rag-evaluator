@@ -22,7 +22,7 @@ from google import genai
 from google.genai import types
 
 
-input_path = Path("data/raw_abstracts_v3final.json")
+input_path = Path("data/raw_abstracts.json")
 chromadb_path = Path("data/chroma_db")
 collection_name = "mental_health_corpus"
 

@@ -29,14 +29,14 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-claims_path = Path("data/evaluation_claims.csv")
+claims_path = Path("data/evaluation/claims.csv")
 chromadb_path = Path("data/chroma_db")
 collection_name = "mental_health_corpus"
-results_path = Path("evaluation_results.csv")
+results_path = Path("data/evaluation_results.csv")
 
 embedding_model = "gemini-embedding-001"
-generation_model = "gemini-2.5-flash" #maximum of 20 request a day
-#generation_model = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits (rerun tomorrow when limit resets)
+#generation_model = "gemini-2.5-flash" #maximum of 20 request a day
+generation_model = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits (rerun tomorrow when limit resets)
 topK = 8 # number of retrieved chunks to give the LLM per claim
 request_delay_seconds = 1.0 # for embedding calls (higher limits, ~10M tokens/min)
 generation_delay_seconds = 9.0  # for generation calls (lower limits ~10 RPM quota)
@@ -51,22 +51,56 @@ system_instructions = """
     1. Base your verdict ONLY on the provided evidence. Do not use outside knowledge and do not guess.
     2. If the evidence does not adequately address the claim, respond with "Insufficient evidence" rather \
     than guessing or extrapolating.
-    3. If the evidence supports the claim only partially, with a caveat, precondition, or limited scope \
-    (example: only for for a specific severity level, duration of use, population, or in combination with another \
-    treatment), use "Supported with caveat" and state the caveat explicitly in your explanation. Do not default \
-    to a bare "Supported" that would overstate what the evidence actually shows.
+    3. Use "Supported with caveat" ONLY if the evidence itself limits the claim's efficacy. For example, \
+    effectiveness restricted to a specfic severity level, duration of use, dosage, population, or only in \
+    combination with another treatment. State the caveat explicitly in the "caveat" field. Do not use "Supported \
+    with caveat" for information that is merely related but does not limit whether the treatment works for the claim \
+    as stated (see rule 7).    
     4. If retrieved evidence concerns a specific subpopulation (example: postpartum, adolescent, older adult) rather \
-    than the general population implied by the claim, note this distinction explicitly rather than treating it as directly \
-    generalizable.
-    5. Cite the PMIDs of the specfic abstracts that support your verdict. Only cite abstracts you actually used in your reasoning.
+    than the general population implied by the claim, note this distinction explicitly as a caveat rather than \
+    treating it as generalizable.
+    5. Each "finding" must include the PMIDs that directly support that specific statement in its "cited_pmids" field. \
+    Do not cite a PMID in "cited_pmids" unless the finding's text is actually based on that source.
     6. Distinguish standalone-treatment claims from combination-treatment claims. A treatment shown effective only as an \
     addition to another treatment is not the same as being effective on its own. 
+    7. If the evidence includes information that is clinically relevant but does not bear on whether the specific claim \
+    is supported (such as comorbid conditions, the treatment's line-of-therapy positioning, effectiveness for a different \
+    condition, or side-effect profiles) include this in the "clinical_notes" field rather than treating it as a caveat or \
+    letting it affect the verdict. The verdict must reflect only whether the evidence supports the specific treatment-efficacy \
+    claim as stated.
+    8. Calibrate confidence based on the quality and consistency of the evidence, not just the presence of a verdict. Use "High" \
+    only when evidence includes well-designed studies (adequate sample size, randomized controlled design) that consistently support \
+    the verdict. Use "Medium" when evidence is mixed, limited to small or pilot studies, or shows some inconsistency across sources. \
+    Use "Low" when evidence is sparse, lower-quality (uncontrolled, very small samples), or conflicting.
+    9. Use "Insufficient evidence" not only when no relevant evidence exists, but also when the available evidence is too low-quality, \
+    poorly controlled, or inconclusive to determine whether the treatment is actually effective (even if studies discussing the treatment \
+    exist). The presence of research on a topic is not the same as that research demonstrating efficacy. Do not default to "Supported \
+    with caveat" simply because evidence exists; only use it when the evidence affirmatively demonstrates some effect, with identifiable \
+    limitations on that effect (see rule 3).
+    10. Reserve "Contradicted" for evidence that affirmatively and confidently demonstrates that treatment does NOT work (for example, \
+    a well-powered study showing no statistically significant effect with narrow confidence intervals, or a study showing the treatment \
+    performs the same or worse than placebo/control, or evidence that consistently demostrates an effect in the opposite direction from what \
+    the claim asserts.). Do not use "Contradicted" for evidence that is merely inconclusive, underpowered, or shows a null \
+    result with wide confidence intervals, that evidence does not confidently show the treatment fails, only that this particular study could \
+    not detect an effect either way. Such evidence should be classified as "Insufficient evidence" instead, since it fails to determine efficacy \
+    in either direction. 
+    11. When the verdict is "Insufficient evidence", ensure the "findings" describe what research exists and specifically why it falls short of \
+    establishing efficacy (for example, small sample size, lack of a control group, wide confidence intervals). If no relevant evidence was \
+    retrieved at all, state this explicitly in a finding (e.g., "No evidence directly addressing this claim was found in the retrieved abstracts") \
+    with an empty "cited_pmids" list, rather than fabricating or forcing a connection to unrelated evidence. Do not return a verdict of \
+    "Insufficient evidence" with findings that are empty or uninformative.
     """
+
+class Finding(BaseModel):
+    finding: str 
+    cited_pmids: list[str]
 
 class Verdict(BaseModel):
     verdict: Literal["Supported", "Supported with caveat", "Contradicted", "Insufficient evidence"]
-    explanation: str
-    citations: list[str]
+    findings: list[Finding]
+    caveat: str | None # Limitation of the clamims efficacy (dosing, population, duration, etc.)
+    clinical_notes: str | None #relevant context outside of the claims scope. (comorbidities, related conditions, etc.)
+    citations: list[str] = []
     confidence: Literal["High", "Medium", "Low"]
 
 
@@ -150,7 +184,9 @@ def evaluate_claim(client: genai.Client, claim_text: str, evidence: list[dict], 
             response_schema=Verdict
         ),
     )
-    return Verdict.model_validate_json(response.text)
+    results = Verdict.model_validate_json(response.text)
+    results.citations = list({pmid for f in results.findings for pmid in f.cited_pmids})
+    return results
     
 def evaluate_claim_with_retry(client, claim_text, evidence, system_instructions, max_retries=3):
     """
@@ -221,7 +257,7 @@ def main():
 
     claims = load_claims(claims_path)
     #temp variable to test on a reduced set of the claims
-    claims = claims[:5]
+    #claims = claims[:5]
     print(f"Testing on a reduced set of {len(claims)} claims")
     #print(f"Loaded {len(claims)} claims from {claims_path}")
 
@@ -231,9 +267,9 @@ def main():
     write_header = not results_path.exists()
     with open(results_path, "a", newline="", encoding="utf-8") as f:
         field_names = [
-            "id", "condition", "treatment", "claim", "phrasing_type", "category", "expected_verdict",
-            "actual_verdict", "actual_explanation", "actual_citations", "actual_confidence", "match",
-            "hallucinated_citations", "notes"
+            "id", "condition", "treatment", "claim", "phrasing_type", "expected_verdict",
+            "actual_verdict", "actual_findings", "actual_caveat", "actual_clinical_notes", 
+            "actual_confidence", "match", "actual_citations", "hallucinated_citations", "notes"
         ]
         writer = csv.DictWriter(f, fieldnames=field_names, quoting=csv.QUOTE_MINIMAL)
         if write_header:
@@ -268,13 +304,14 @@ def main():
                 "treatment": claim["treatment"],
                 "claim": claim["claim"],
                 "phrasing_type": claim["phrasing_type"],
-                "category": claim["category"],
                 "expected_verdict": expected,
                 "actual_verdict": result.verdict,
-                "actual_explanation": result.explanation,
-                "actual_citations": "; ".join(result.citations),
+                "actual_findings": " | ".join(f"{f.finding} [{', '.join(f.cited_pmids)}]" for f in result.findings),
+                "actual_caveat": result.caveat,
+                "actual_clinical_notes": result.clinical_notes,
                 "actual_confidence": result.confidence,
                 "match": match,
+                "actual_citations": '; '.join(result.citations),
                 "hallucinated_citations": "; ".join(hallucinatedCitations) if hallucinatedCitations else "",
                 "notes": claim["notes"]
             })

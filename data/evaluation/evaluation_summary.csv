@@ -1,22 +1,14 @@
 metric,group,matched,total,value_pct
-overall_match_rate_pct,all,19,31,61.3
-match_rate_by_phrasing_type,conversational,2,3,66.7
-match_rate_by_phrasing_type,exact-term,5,7,71.4
+overall_match_rate_pct,all,23,37,62.2
+match_rate_by_phrasing_type,conversational,2,5,40.0
+match_rate_by_phrasing_type,exact-term,7,8,87.5
 match_rate_by_phrasing_type,misspelling,1,1,100.0
-match_rate_by_phrasing_type,semantic,11,20,55.0
-match_rate_by_category,adjunct-vs-standalone,2,2,100.0
-match_rate_by_category,comparative,1,2,50.0
-match_rate_by_category,omitted-caveat,2,2,100.0
-match_rate_by_category,out-of-corpus,0,1,0.0
-match_rate_by_category,overstated,4,4,100.0
-match_rate_by_category,second-line,2,6,33.3
-match_rate_by_category,supported-conditional,1,3,33.3
-match_rate_by_category,unrelated-treatment,2,2,100.0
-match_rate_by_category,well-supported,5,9,55.6
-confidence_distribution,High,,33,
-confidence_distribution,Medium,,5,
+match_rate_by_phrasing_type,semantic,13,23,56.5
+confidence_distribution,Medium,,17,
+confidence_distribution,High,,15,
+confidence_distribution,Low,,6,
 verdict_distribution,Supported with caveat,,18,
-verdict_distribution,Supported,,11,
-verdict_distribution,Contradicted,,6,
-verdict_distribution,Insufficient evidence,,3,
+verdict_distribution,Insufficient evidence,,10,
+verdict_distribution,Supported,,9,
+verdict_distribution,Contradicted,,1,
 hallucinated_citations,all,0,38,0.0

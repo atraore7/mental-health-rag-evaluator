@@ -1,10 +1,10 @@
 [
   {
-    "pubmed_id":28841486,
-    "title":"The effectiveness of adjunct mindfulness-based intervention in treatment of bipolar disorder: A systematic review and meta-analysis.",
+    "pubmed_id":40351842,
+    "title":"Protocol for a feasibility trial of digital mindfulness and cognitive-motor exercise for subclinical depression in older adults.",
     "search_condition":"major depressive disorder",
     "search_treatment":"mindfulness-based intervention",
-    "abstract":"Mindfulness-based interventions (MBIs) have been increasingly used as an adjunctive treatment to pharmacotherapy for a few psychiatric disorders. However, few studies have investigated the efficacy of MBIs in bipolar disorder (BD). We performed a systematic review and meta-analysis to evaluate the efficacy of MBIs as an adjunctive treatment in BD. Major electronic databases were independently sear..."
+    "abstract":"Subclinical depression in older adults, though below the diagnostic threshold for major depressive disorder (MDD), is associated with an increased risk of progression and functional decline. This study aims to assess the feasibility, safety, and preliminary efficacy of a combined mindfulness-based and cognitive-motor intervention, with a view to future optimization and broader application. This si..."
   },
   {
     "pubmed_id":36061089,
@@ -14,32 +14,11 @@
     "abstract":"This study includes a systematic review of cost-effectiveness analyses (CEAs) and cost-benefit analyses (CBAs) of mindfulness-based interventions (MBIs). A literature search was conducted using PubMed, Web of Science, JSTOR, and CINAHL for studies published between January 1985 and September 2021, including an original cost-related evaluation of an MBI. A qualitative assessment of bias was perform..."
   },
   {
-    "pubmed_id":40351842,
-    "title":"Protocol for a feasibility trial of digital mindfulness and cognitive-motor exercise for subclinical depression in older adults.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"mindfulness-based intervention",
-    "abstract":"Subclinical depression in older adults, though below the diagnostic threshold for major depressive disorder (MDD), is associated with an increased risk of progression and functional decline. This study aims to assess the feasibility, safety, and preliminary efficacy of a combined mindfulness-based and cognitive-motor intervention, with a view to future optimization and broader application. This si..."
-  },
-  {
     "pubmed_id":31884318,
     "title":"Mindfulness-based focused attention training versus progressive muscle relaxation in remitted depressed patients: Effects on salivary cortisol and associations with subjective improvements in daily life.",
     "search_condition":"major depressive disorder",
     "search_treatment":"mindfulness-based intervention",
     "abstract":"Major Depression is a stress-related disorder characterized by altered hypothalamic-pituitary-adrenal axis function. Mindfulness-based interventions have shown to improve subjective parameters of stress and to reduce relapse rates in depressed patients. However, research on their effects on diurnal patterns of cortisol and associations with subjective outcomes is lacking. The present Ambulatory As..."
-  },
-  {
-    "pubmed_id":36998625,
-    "title":"Investigating the effectiveness of a smart mental health intervention (inMind) for stress reduction during pharmacological treatment for mild to moderate major depressive disorders: Study protocol for a randomized control trial.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"mindfulness-based intervention",
-    "abstract":"Although psychological interventions for stress relief, such as cognitive behavioral therapy (CBT) and mindfulness-based stress reduction (MBSR), have been developed, they have not been widely used in treating depression. The use of mobile devices can increase the possibility of actual use by integrating interventions and reducing the difficulty and cost burden of treatment application. This study..."
-  },
-  {
-    "pubmed_id":40356545,
-    "title":"The Relationship Between Childhood Maltreatment and Insomnia in Depressed Adolescents: The Mediating Role of Rumination.",
-    "search_condition":"major depressive disorder",
-    "search_treatment":"mindfulness-based intervention",
-    "abstract":"There exists a prevalence of insomnia in depressed adolescents. Childhood maltreatment is a major life event which may intensify its severity. However, studies on the relationship between insomnia and childhood maltreatment and the mediating role of rumination are scarce. The study utilized a cross-sectional study design with 88 adolescents diagnosed with major depressive disorder. Childhood maltr..."
   },
   {
     "pubmed_id":36754677,
@@ -54,5 +33,26 @@
     "search_condition":"major depressive disorder",
     "search_treatment":"mindfulness-based intervention",
     "abstract":"Mindfulness-based interventions (MBIs) are effective in treating major depression. Because mindfulness involves monitoring and accepting current experiences, it may lead people resolve incongruencies between emotional responses that would otherwise remain unnoticed. Mindfulness may thus foster congruence between implicit and explicit emotions. The current randomized controlled trial tested this no..."
+  },
+  {
+    "pubmed_id":36998625,
+    "title":"Investigating the effectiveness of a smart mental health intervention (inMind) for stress reduction during pharmacological treatment for mild to moderate major depressive disorders: Study protocol for a randomized control trial.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"mindfulness-based intervention",
+    "abstract":"Although psychological interventions for stress relief, such as cognitive behavioral therapy (CBT) and mindfulness-based stress reduction (MBSR), have been developed, they have not been widely used in treating depression. The use of mobile devices can increase the possibility of actual use by integrating interventions and reducing the difficulty and cost burden of treatment application. This study..."
+  },
+  {
+    "pubmed_id":28841486,
+    "title":"The effectiveness of adjunct mindfulness-based intervention in treatment of bipolar disorder: A systematic review and meta-analysis.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"mindfulness-based intervention",
+    "abstract":"Mindfulness-based interventions (MBIs) have been increasingly used as an adjunctive treatment to pharmacotherapy for a few psychiatric disorders. However, few studies have investigated the efficacy of MBIs in bipolar disorder (BD). We performed a systematic review and meta-analysis to evaluate the efficacy of MBIs as an adjunctive treatment in BD. Major electronic databases were independently sear..."
+  },
+  {
+    "pubmed_id":40356545,
+    "title":"The Relationship Between Childhood Maltreatment and Insomnia in Depressed Adolescents: The Mediating Role of Rumination.",
+    "search_condition":"major depressive disorder",
+    "search_treatment":"mindfulness-based intervention",
+    "abstract":"There exists a prevalence of insomnia in depressed adolescents. Childhood maltreatment is a major life event which may intensify its severity. However, studies on the relationship between insomnia and childhood maltreatment and the mediating role of rumination are scarce. The study utilized a cross-sectional study design with 88 adolescents diagnosed with major depressive disorder. Childhood maltr..."
   }
 ]

@@ -13,7 +13,7 @@ Compute quantitative metrics on evaluation_results.csv:
 import pandas as pd
 from pathlib import Path
 
-results_path = Path("data/evaluation_results_v1.csv")
+results_path = Path("data/evaluation_results.csv")
 
 
 def load_results(path:Path) -> pd.DataFrame:
@@ -96,7 +96,7 @@ def get_mismatches(df:pd.DataFrame) -> pd.DataFrame:
     mean was more precise than the pre-inputed expected verdict.
     """
     mismatches = df[df["match"] == "False"][
-        ["id", "treatment", "claim", "category", "expected_verdict", "actual_verdict", "actual_citations", "actual_explanation"]
+        ["id", "treatment", "claim", "expected_verdict", "actual_verdict", "actual_citations", "actual_findings", "actual_caveat", "notes"]
     ].copy()
     mismatches["investigation_notes"] = ""
     return mismatches
@@ -110,7 +110,6 @@ def main():
     summary_rows = []
     summary_rows.append(match_rate_overall(scored))
     summary_rows.extend(match_rate_by_column(scored, "phrasing_type"))
-    summary_rows.extend(match_rate_by_column(scored, "category"))
     summary_rows.extend(confidence_distribution(df))
     summary_rows.extend(verdict_distribution(df))
     summary_rows.append(hallucinated_citation_count(df))
@@ -123,7 +122,7 @@ def main():
     print(f"Wrote summary ({len(summarydf)} rows) to {summaryPath}")
 
     mismatches = get_mismatches(df)
-    mismatchesPath =  Path("data/evaluation/mismatches.csv")
+    mismatchesPath =  Path("data/evaluation/mismatches_raw.csv")
     mismatches.to_csv(mismatchesPath, index=False)
     print(f"Wrote {len(mismatches)} mismatches to {mismatchesPath}")
 
