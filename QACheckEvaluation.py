@@ -28,8 +28,6 @@ def get_scored_subset(df: pd.DataFrame) -> pd.DataFrame:
 def match_rate_overall(scored: pd.DataFrame) -> dict:
     """
     Overall match rate between expected_verdict and actual_verdict.
-    TBD claims are excluded as there's no pre-input ground truth to 
-    score against. 
     """
     return{
         "metric": "overall_match_rate_pct",
@@ -37,6 +35,26 @@ def match_rate_overall(scored: pd.DataFrame) -> dict:
         "matched": scored["match_bool"].sum(),
         "total": len(scored),
         "value_pct": round(scored["match_bool"].mean() * 100, 1)
+    }
+def match_rate_lenient(scored: pd.DataFrame) -> dict:
+    """
+    Lenient match rate: counts a claim as a match if the actual_verdict equals either the expected_verdict OR the 
+    acceptable_verdicts (for claims with more than one acceptable verdict.)
+    """
+    def is_acceptable_match(row) -> bool:
+        acceptable = [str(row["expected_verdict"]).strip()]
+        other = row.get("acceptable_verdicts", "")
+        if pd.notna(other) and str(other).strip():
+            acceptable.append(str(other).strip())
+        return str(row["actual_verdict"]).strip() in acceptable
+
+    lenient_match = scored.apply(is_acceptable_match, axis=1)
+    return{
+        "metric": "lenient_match_rate_pct",
+        "group": "all",
+        "matched": int(lenient_match.sum()),
+        "total": len(scored),
+        "value_pct":round(lenient_match.mean() * 100, 1)
     }
 
 def match_rate_by_column(scored: pd.DataFrame, column:str) -> list[dict]:
@@ -96,7 +114,7 @@ def get_mismatches(df:pd.DataFrame) -> pd.DataFrame:
     mean was more precise than the pre-inputed expected verdict.
     """
     mismatches = df[df["match"] == "False"][
-        ["id", "treatment", "claim", "expected_verdict", "actual_verdict", "actual_citations", "actual_findings", "actual_caveat", "notes"]
+        ["id", "treatment", "claim", "expected_verdict", "acceptable_verdicts", "actual_verdict", "actual_citations", "actual_findings", "actual_caveat", "notes"]
     ].copy()
     mismatches["investigation_notes"] = ""
     return mismatches
@@ -109,6 +127,7 @@ def main():
 
     summary_rows = []
     summary_rows.append(match_rate_overall(scored))
+    summary_rows.append(match_rate_lenient(scored))
     summary_rows.extend(match_rate_by_column(scored, "phrasing_type"))
     summary_rows.extend(confidence_distribution(df))
     summary_rows.extend(verdict_distribution(df))

@@ -36,7 +36,7 @@ results_path = Path("data/evaluation_results.csv")
 
 embedding_model = "gemini-embedding-001"
 #generation_model = "gemini-2.5-flash" #maximum of 20 request a day
-generation_model = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits (rerun tomorrow when limit resets)
+generation_model = "gemini-2.5-flash-lite" # finish processing claims with lower version that has higher limits
 topK = 8 # number of retrieved chunks to give the LLM per claim
 request_delay_seconds = 1.0 # for embedding calls (higher limits, ~10M tokens/min)
 generation_delay_seconds = 9.0  # for generation calls (lower limits ~10 RPM quota)
@@ -51,11 +51,18 @@ system_instructions = """
     1. Base your verdict ONLY on the provided evidence. Do not use outside knowledge and do not guess.
     2. If the evidence does not adequately address the claim, respond with "Insufficient evidence" rather \
     than guessing or extrapolating.
-    3. Use "Supported with caveat" ONLY if the evidence itself limits the claim's efficacy. For example, \
-    effectiveness restricted to a specfic severity level, duration of use, dosage, population, or only in \
-    combination with another treatment. State the caveat explicitly in the "caveat" field. Do not use "Supported \
+    3. Use "Supported with caveat" ONLY if the evidence itself limits the claim's efficacy, either through scope restrictions \
+    (severity level, duration, dosage, population, or combination-only effectiveness) or through evidence that meaningfully \
+    qualifies the strength of the effect itself (for example, notable dropout rates, relapse, or effect sizes described as \
+    modest/moderate rather than robust). State the caveat explicitly in the "caveat" field. Do not use "Supported \
     with caveat" for information that is merely related but does not limit whether the treatment works for the claim \
-    as stated (see rule 7).    
+    as stated (see rule 7). Specifically, none of the following count as a caveat on their own: (a) the treatment being \
+    second-line or positioned after other options. (Note: if the evidence shows the treatment is only effective when used \
+    in combination with another treatment, and the claim asserts standalone efficacy, this is a genuine limitation - see rule 6) \
+    ; (b) the treatment's efficacy for a different condition (for example, a comorbidity) than the one in the claim; \
+    (c) a statement that the treatment's effect is similar to, weaker than, or stronger than another treatment's effect \
+    (unless the claim itself makes that comparison (see rule 6)). A treatment being equally or less impressive than an \
+    alternative does not mean it fails to work for the claim as stated. 
     4. If retrieved evidence concerns a specific subpopulation (example: postpartum, adolescent, older adult) rather \
     than the general population implied by the claim, note this distinction explicitly as a caveat rather than \
     treating it as generalizable.
@@ -66,8 +73,9 @@ system_instructions = """
     7. If the evidence includes information that is clinically relevant but does not bear on whether the specific claim \
     is supported (such as comorbid conditions, the treatment's line-of-therapy positioning, effectiveness for a different \
     condition, or side-effect profiles) include this in the "clinical_notes" field rather than treating it as a caveat or \
-    letting it affect the verdict. The verdict must reflect only whether the evidence supports the specific treatment-efficacy \
-    claim as stated.
+    letting it affect the verdict. The verdict must reflect ONLY whether the evidence supports the specific treatment-efficacy \
+    claim as stated. Before finalizing a caveat or verdict downgrade, check: does this specific piece of evidence directly limit \
+    whether the treatment works for the claim's stated condition? If not, it belongs in "clinical_notes".
     8. Calibrate confidence based on the quality and consistency of the evidence, not just the presence of a verdict. Use "High" \
     only when evidence includes well-designed studies (adequate sample size, randomized controlled design) that consistently support \
     the verdict. Use "Medium" when evidence is mixed, limited to small or pilot studies, or shows some inconsistency across sources. \
@@ -79,7 +87,7 @@ system_instructions = """
     limitations on that effect (see rule 3).
     10. Reserve "Contradicted" for evidence that affirmatively and confidently demonstrates that treatment does NOT work (for example, \
     a well-powered study showing no statistically significant effect with narrow confidence intervals, or a study showing the treatment \
-    performs the same or worse than placebo/control, or evidence that consistently demostrates an effect in the opposite direction from what \
+    performs the same or worse than placebo/control, or evidence that consistently demonstrates an effect in the opposite direction from what \
     the claim asserts.). Do not use "Contradicted" for evidence that is merely inconclusive, underpowered, or shows a null \
     result with wide confidence intervals, that evidence does not confidently show the treatment fails, only that this particular study could \
     not detect an effect either way. Such evidence should be classified as "Insufficient evidence" instead, since it fails to determine efficacy \
@@ -268,8 +276,9 @@ def main():
     with open(results_path, "a", newline="", encoding="utf-8") as f:
         field_names = [
             "id", "condition", "treatment", "claim", "phrasing_type", "expected_verdict",
-            "actual_verdict", "actual_findings", "actual_caveat", "actual_clinical_notes", 
-            "actual_confidence", "match", "actual_citations", "hallucinated_citations", "notes"
+            "acceptable_verdicts", "actual_verdict", "actual_findings", "actual_caveat", 
+            "actual_clinical_notes", "actual_confidence", "match", "actual_citations", 
+            "hallucinated_citations", "notes"
         ]
         writer = csv.DictWriter(f, fieldnames=field_names, quoting=csv.QUOTE_MINIMAL)
         if write_header:
@@ -305,6 +314,7 @@ def main():
                 "claim": claim["claim"],
                 "phrasing_type": claim["phrasing_type"],
                 "expected_verdict": expected,
+                "acceptable_verdicts": claim["acceptable_verdicts"],
                 "actual_verdict": result.verdict,
                 "actual_findings": " | ".join(f"{f.finding} [{', '.join(f.cited_pmids)}]" for f in result.findings),
                 "actual_caveat": result.caveat,
@@ -324,4 +334,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-            
+                
