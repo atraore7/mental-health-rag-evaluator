@@ -29,7 +29,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-claims_path = Path("data/evaluation/claims.csv")
+claims_path = Path("data/claims.csv")
 chromadb_path = Path("data/chroma_db")
 collection_name = "mental_health_corpus"
 results_path = Path("data/evaluation_results.csv")

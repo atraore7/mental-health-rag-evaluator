@@ -76,6 +76,7 @@ def main():
 
     chromadb_path.mkdir(parents=True, exist_ok=True)
     chroma_client = chromadb.PersistentClient(path=str(chromadb_path))
+    #chroma_client.delete_collection(name=collection_name)
     collection = chroma_client.get_or_create_collection(name=collection_name)
 
     # Check for records already embedded, so rerunning the script

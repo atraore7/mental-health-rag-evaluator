@@ -1,14 +1,14 @@
 metric,group,matched,total,value_pct
-overall_match_rate_pct,all,23,37,62.2
-match_rate_by_phrasing_type,conversational,2,5,40.0
+overall_match_rate_pct,all,27,37,73.0
+match_rate_by_phrasing_type,conversational,4,5,80.0
 match_rate_by_phrasing_type,exact-term,7,8,87.5
 match_rate_by_phrasing_type,misspelling,1,1,100.0
-match_rate_by_phrasing_type,semantic,13,23,56.5
-confidence_distribution,Medium,,17,
-confidence_distribution,High,,15,
+match_rate_by_phrasing_type,semantic,15,23,65.2
+confidence_distribution,High,,17,
+confidence_distribution,Medium,,15,
 confidence_distribution,Low,,6,
-verdict_distribution,Supported with caveat,,18,
-verdict_distribution,Insufficient evidence,,10,
+verdict_distribution,Supported with caveat,,20,
 verdict_distribution,Supported,,9,
+verdict_distribution,Insufficient evidence,,8,
 verdict_distribution,Contradicted,,1,
 hallucinated_citations,all,0,38,0.0
