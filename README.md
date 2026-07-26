@@ -8,18 +8,44 @@ An end-to-end pipeline that evaluates mental health treatment claims against bio
 
 ## TL;DR
 
-- **What it does:** Evaluates treatment-efficacy claims about Generalized Anxiety Disorder (GAD)/Major Depressive Disorder (MDD) against ~860 PubMed abstracts, returning a structured verdict (Supported / Supported with caveat / Contradicted / Insufficient evidence) with citations and confidence (not just a yes/no response).
+- **What it does:** Evaluates treatment-efficacy claims about Generalized Anxiety Disorder (GAD)/Major Depressive Disorder (MDD) against ~857 PubMed abstracts, returning a structured verdict (Supported / Supported with caveat / Contradicted / Insufficient evidence), a per-finding citation trail, and separate fields for genuine efficacy caveats vs. tangential clinical context.
+- **Scope:** This system evaluates whether a specific treatment-efficacy claim is supported by the evidence — it does not recommend the best treatment for a patient, and is not a substitute for clinical judgment. See "Design Philosophy" below.
 - **Stack:** PubMed API → Gemini embeddings → ChromaDB → Gemini LLM (structured output via Pydantic) → pandas-based evaluation analysis.
-- **Result:** Evaluated on 38 hand-curated claims. **Zero hallucinated citations** (programmatically verified). 61.3% exact match against pre-registered expectations — every mismatch manually investigated against source abstracts, several of which revealed the system was *more* precise than the original expectation.
+- **Result:** Evaluated on 38 hand-curated claims across multiple runs. Zero hallucinated citations across all evaluated claims (programmatically verified via a retry-and-correct loop). **75.7% strict match rate (28/37 scored claims)**, rising to **89.2%** when accounting for claims with genuinely defensible alternate verdicts identified through manual, source-level review (see "Evaluation Methodology"). That review also surfaced a recurring caveat-classification bug that resisted prompt-only fixes — see "Findings" below.
+
+---
+
+## Contents
+- [Design Philosophy](#design-philosophy-claim-verification-not-clinical-decision-support)
+- [Output Schema](#output-schema)
+- [Pipeline](#pipeline)
+- [Cost](#cost)
+- [Design Decisions](#design-decisions)
+- [Evaluation Methodology](#evaluation-methodology)
+- [Findings](#findings)
+- [Next Steps](#next-steps)
 
 ---
 
 ## Overview
 
 Given a claim like *"Escitalopram is effective for reducing symptoms of anxiety,"* the system:
-1. Embeds the claim and retrieves the most relevant chunks from a corpus of ~860 PubMed abstracts on GAD and MDD treatments
-2. Passes the claim + retrieved evidence to an LLM, which returns a structured verdict: **Supported**, **Supported with caveat**, **Contradicted**, or **Insufficient evidence** — along with an explanation and the specific PMIDs it relied on.
+1. Embeds the claim and retrieves the most relevant chunks from a corpus of ~857 PubMed abstracts on GAD and MDD treatments
+2. Passes the claim + retrieved evidence to an LLM, which returns a structured verdict: **Supported**, **Supported with caveat**, **Contradicted**, or **Insufficient evidence** — along with per-finding citations, a caveat (if a genuine efficacy limitation exists), clinical notes (if relevant but tangential context exists), and a confidence level.
 3. Logs the result for comparison against a hand-curated, pre-registered set of expected outcomes.
+
+---
+
+## Design Philosophy: Claim Verification, Not Clinical Decision Support
+
+This system evaluates whether a specific treatment-efficacy claim is supported by the retrieved evidence — it does not recommend the best treatment for a patient, and it is not a substitute for clinical judgment.
+
+This distinction shapes how `verdict` and `caveat` are determined. A treatment being second-line, more commonly used as an adjunct, or less effective than an alternative doesn't mean it fails to work — it means a clinician might reasonably choose something else first. That's clinically relevant, but it doesn't change whether the underlying efficacy claim is true. This system routes that kind of context to a separate `clinical_notes` field rather than letting it downgrade the verdict, so:
+
+- `verdict` / `caveat` answer: does the evidence support this specific claim, and are there real limitations on that efficacy (population, dosage, duration, effect strength)?
+- `clinical_notes` answers: what else is relevant context, even if it doesn't bear on this specific claim?
+
+This distinction was refined iteratively through manual, source-level review — see "Findings" for the specific cases that shaped it.
 
 ---
 
@@ -36,22 +62,56 @@ Given a claim like *"Escitalopram is effective for reducing symptoms of anxiety,
 
 ---
 
+## Cost
+
+This project uses the paid Gemini API tier for evaluation and the free tier for embeddings.
+
+- **Full evaluation run (38 claims):** approximately **$0.03** per complete run, including any additional API calls triggered by the citation-hallucination retry logic (see `evaluate_claim_with_retry` in ClaimEvaluationEngine.py).
+- **Embedding (one-time):** ~857 PubMed abstracts embedded via `gemini-embedding-001` on the free tier — no cost, re-run only when the corpus itself changes.
+- **Models used:** `gemini-2.5-flash-lite` for generation/evaluation, `gemini-embedding-001` for embeddings.
+
+At this cost, the full evaluation suite can be re-run cheaply and often — which is what made the iterative, multi-round manual review process (see Findings below) practical in the first place.
+
+---
+
+## Output Schema
+
+Each evaluated claim returns:
+
+```python
+class Finding(BaseModel):
+    finding: str            # one specific statement from the evidence
+    cited_pmids: list[str]  # PMIDs supporting that specific statement
+
+class Verdict(BaseModel):
+    verdict: Literal["Supported", "Supported with caveat", "Contradicted", "Insufficient evidence"]
+    findings: list[Finding]       # each claim backed by its own citations
+    caveat: str | None            # genuine limitation on efficacy (population, duration, effect strength)
+    clinical_notes: str | None    # relevant but tangential context (comorbidities, treatment-line positioning)
+    citations: list[str]          # derived programmatically from findings, not model-generated
+    confidence: Literal["High", "Medium", "Low"]
+```
+
+`citations` is deliberately **not** filled in by the model directly — it's derived after parsing by flattening every `Finding`'s `cited_pmids`, guaranteeing it can never drift from what's actually cited in the reasoning (an earlier version had this exact bug: a citation referenced in the explanation text but missing from the citations list).
+
+---
+
 ## Pipeline
 
 **Phase 1 — Corpus Ingestion** (PubMedIngestion.py)
 Pulls abstracts from PubMed via esearch/efetch for 28 condition+treatment search term pairs across GAD and MDD, with deduplication by PubMed ID.
 
 **Phase 2 — QA & Corpus Refinement** (QACheckPubMed.py)
-Validates the ingested corpus: duplicate/missing-field checks, per-search-term record counts, and a keyword-based "on-topic rate" proxy measure used to flag search terms worth manually reviewing. This proxy measure only informs corpus QA at ingestion time, the system's actual relevance judgments, both at retrieval (embedding similarity) and evaluation (LLM reasoning), use semantic methods. This process surfaced and fixed two real issues (see Design Decisions below).
+Validates the ingested corpus: duplicate/missing-field checks, per-search-term record counts, and a keyword-based "on-topic rate" proxy measure used to flag search terms worth manually reviewing. This proxy measure only informs corpus QA at ingestion time; the system's actual relevance judgments, both at retrieval (embedding similarity) and evaluation (LLM reasoning), use semantic methods. This process surfaced and fixed two real issues (see Findings below).
 
 **Phase 3 — Chunking + Embedding** (ChunkEmbed.py)
-Embeds each abstract (title + text) using Gemini's embedding model with 'task_type=RETRIEVAL_DOCUMENT', storing vectors + metadata in a persistent ChromaDB collection (863 records).
+Embeds each abstract (title + text) using Gemini's embedding model with `task_type=RETRIEVAL_DOCUMENT`, storing vectors + metadata in a persistent ChromaDB collection (857 records).
 
 **Phase 4 — Claim Evaluation Engine** (ClaimEvaluationEngine.py)
-For each claim: embeds it with 'task_type=RETRIEVAL_QUERY', retrieves the top-8 most relevant chunks, and prompts an LLM (with a structured 'Verdict' schema via Pydantic) to produce a verdict, explanation, citations, and confidence level. Includes a programmatic check confirming every citation traces back to retrieved evidence (not hallucinated).
+For each claim: embeds it with `task_type=RETRIEVAL_QUERY`, retrieves the top-8 most relevant chunks, and prompts an LLM (with a structured `Verdict` schema via Pydantic) to produce a verdict, per-finding citations, caveat, clinical_notes, and confidence level. Includes a programmatic retry-and-correct loop confirming every citation traces back to retrieved evidence (not hallucinated).
 
 **Phase 5 — Analysis** (QACheckEvaluation.py)
-Computes match rate (overall, by phrasing type, by category), confidence/verdict distributions, and hallucination checks; exports a consolidated summary and a mismatches file for manual review.
+Computes strict and lenient match rate (overall, by phrasing type), confidence/verdict distributions, and hallucination checks; exports a consolidated summary and mismatches file for manual review.
 
 ---
 
@@ -65,120 +125,117 @@ python3 PubMedIngestion.py       # Phase 1: build the corpus
 python3 QACheckPubMed.py         # Phase 2: validate corpus
 python3 ChunkEmbed.py            # Phase 3: embed into ChromaDB
 python3 ClaimEvaluationEngine.py # Phase 4: run the evaluation
-python3 analyze_results.py       # Phase 5: analyze results
+python3 QACheckEvaluation.py     # Phase 5: analyze results
 ```
-
 
 ---
 
 ## Design Decisions
 
 ### Corpus Coverage
-Search terms were curated using a clinical literature review (NCBI treatment overview) rather than an exhaustive or automated discovery process. Coverage is not guaranteed to be complete. A treatment absent from the corpus causes the system to return "Insufficient evidence," which may reflect an ingestion gap rather than a genuine lack of literature. A production version would mitigate this via MeSH-based hierarchical term expansion or periodic review against current clinical guidelines.
+Search terms were curated using a clinical literature review (NCBI treatment overview) rather than a systematic term-discovery process. Coverage is not guaranteed to be complete — a treatment absent from the corpus causes the system to return "Insufficient evidence," which may reflect a curation gap rather than a genuine lack of literature.
+
+This approach also doesn't scale to additional conditions as-is: the current corpus covers two conditions (GAD, MDD) via manually curated condition+treatment search term pairs, and that pairing process grows combinatorially as more conditions and their full treatment landscapes are added — manual curation can't keep pace.
+
+Rather than ingesting more broadly and relying on retrieval to compensate, a production version should scale by replicating the same precision-first process per condition. Keeping the corpus as free of irrelevant material as possible improves retrieval accuracy directly — every additional off-topic or loosely-related record is something the retrieval step has to correctly filter out at query time, so avoiding an overloaded corpus in the first place reduces that burden rather than shifting it downstream:
+
+- **MeSH (Medical Subject Headings) — NLM's controlled, hierarchical vocabulary used to index PubMed — replaces manual literature review as the source of truth for identifying treatments.** MeSH terms are directly queryable through the same PubMed API this project already uses (via the `[MeSH Terms]` field tag in `esearch`), so this doesn't require a new data source — it's a more systematic way of using the API already in place. This scales the curation *process* itself, not the corpus size.
+- **The exact-phrase-matching discipline (see "Search Precision" below) applies identically to every new condition**, keeping each new condition's ingestion as precise as GAD/MDD's rather than allowing precision to erode as coverage expands.
+- **Hybrid retrieval and reranking (see Next Steps) become more valuable, not less, as more conditions are added** — a larger set of individually-curated corpora increases the chance of adjacent-condition content being retrieved (e.g., GAD and panic disorder evidence overlapping), and reranking helps ensure the most condition-specific evidence wins without needing to shrink the corpus back down.
+- **A treatment with genuinely little published research should still return "Insufficient evidence"** regardless of how many conditions are covered — that reflects a real literature gap and shouldn't be engineered around.
 
 ### Search Precision / Automatic Term Mapping
-Corpus ingestion uses keyword-based PubMed search, which relies on PubMed's automatic term mapping, an unquoted multi-word term (e.g., "light therapy") can silently expand into a much broader OR-query (matching "light" and "therapy" appearing anywhere, independently). This was discovered via manual sample review (a "light therapy" search initially returned mostly unrelated ketamine/ECT papers) and confirmed via PubMed's querytranslation API field. Fix: all treatment terms are wrapped in quotes to force exact-phrase matching, reducing one search term's result count from 739 to 288 while improving manually-reviewed relevance from approximately 20% to 75–80%.
+Corpus ingestion uses keyword-based PubMed search, which relies on PubMed's automatic term mapping; an unquoted multi-word term (e.g., "light therapy") can silently expand into a much broader OR-query (matching "light" and "therapy" appearing anywhere, independently). This was discovered via manual sample review (a "light therapy" search initially returned mostly unrelated ketamine/ECT papers) and confirmed via PubMed's querytranslation API field. Fix: all treatment terms are wrapped in quotes to force exact-phrase matching, reducing one search term's result count from 739 to 288 while improving manually-reviewed relevance from approximately 20% to 75–80%.
 
 ### Standalone vs. Adjunct Treatment Distinction
-Antipsychotics were included as a search term despite being an augmentation strategy rather than a standalone MDD treatment, specifically to test whether the system distinguishes standalone claims ("antipsychotics are an effective standalone treatment for MDD" — expected: condradicted) from adjunct claims ("antipsychotics can enhance antidepressant treatment for MDD" — expected: supported).
+Antipsychotics were included as a search term despite being an augmentation strategy rather than a standalone MDD treatment, specifically to test whether the system distinguishes standalone claims ("antipsychotics are an effective standalone treatment for MDD") from adjunct claims ("antipsychotics can enhance antidepressant treatment for MDD").
 
 ### Static Snapshot
 The corpus is a static snapshot from ingestion time. A production system would need a scheduled refresh pipeline; the current system correctly flags "insufficient evidence" rather than guessing when coverage doesn't exist, rather than silently going stale.
 
+### Chunking Strategy
+Each abstract (title + full text) is embedded as a single chunk rather than split into sub-document chunks, since PubMed abstracts are short enough to fit well within the embedding model's context window — splitting further would add complexity without retrieval benefit for this corpus. This would need revisiting for a corpus of longer full-text articles rather than abstracts.
+
 ### Claim Set Design
 The 38-claim evaluation set was designed to test more than factual accuracy:
 - **Verdict format goes beyond binary Supported/Unsupported.** Several claims deliberately omit a real caveat present in the source material (e.g., benzodiazepines' short-term-use qualifier) to test whether the system surfaces it rather than returning a misleadingly bare "Supported."
-- **Semantic retrieval is explicitly stress-tested.** The majority of claims deliberately use different phrasing than the ingestion search term (e.g., drug names instead of classes, brand names, acronyms in both directions, conversational phrasing, and a deliberate misspelling) with a 'phrasing_type' column distinguishing these from exact-term baseline controls.
+- **Semantic retrieval is explicitly stress-tested.** The majority of claims deliberately use different phrasing than the ingestion search term (e.g., drug names instead of classes, brand names, acronyms in both directions, conversational phrasing, and a deliberate misspelling) with a `phrasing_type` column distinguishing these from exact-term baseline controls.
 - **Standalone-vs-adjunct framing is tested directly**, using the same drug/condition pair with only the framing changed.
-- **Expected verdicts are pre-registered hypotheses**, set before running the pipeline, not adjusted after seeing results, disagreements are treated as informative in either direction.
+- **Expected verdicts are pre-registered hypotheses**, set before running the pipeline, not adjusted after seeing results — disagreements are treated as informative in either direction.
+
 
 ### Evaluation Engine System Instructions
-Each system instruction rule maps to a specific problem found during development, not generic prompt engineering:
-1. Ground verdicts only in retrieved evidence (core RAG premise)
-2. Return "Insufficient evidence" rather than guessing (hallucination-resistance test)
-3. Use "Supported with caveat" rather than a bare "Supported" when evidence only partially supports a claim
-4. Flag subpopulation-specific evidence rather than silently generalizing it (found during corpus QA, a postpartum-depression paper surfaced under a general MDD search)
-5. Cite only PMIDs actually used in reasoning
-6. Distinguish standalone-treatment claims from adjunct/combination-treatment claims
+The system instructions combine standard prompt-engineering practices (clear rules, explicit examples, structured output via Pydantic) with rule-level revisions driven directly by problems found through repeated testing — the current 11-rule set is the result of multiple rounds of running the evaluation, manually reviewing mismatches against source abstracts, and revising specific rules in response. Notable examples: rule 3 was tightened twice after the same tangential-caveat error (second-line positioning, cross-condition efficacy, comparative language) recurred across separate evaluation runs; rule 10 was revised after a claim's evidence showing an effect in the *opposite* direction from what was claimed was initially misclassified as "Supported with caveat" instead of "Contradicted"; rule 9 was expanded after "Insufficient evidence" was under-used when any citations existed, regardless of evidence quality. See "Findings" for the specific evidence behind each of these.
 
 ---
 
-## Evaluation Results
+## Evaluation Methodology
 
-The system was evaluated against all 38 claims. Every mismatch between the pre-registered expected verdict and the actual output was manually investigated against the cited PubMed abstracts before being classified as a system finding, an expected-verdict labeling issue, or confirmation of correct behavior.
+Each claim has a pre-registered `expected_verdict`. During manual review, some claims were found to have **more than one defensible verdict** given genuinely mixed or borderline evidence (e.g., a treatment with evidence split between elderly and general-adult populations, or an "insufficient evidence" call that's arguably closer to "supported with caveat"). These are recorded in a separate `acceptable_verdicts` column, populated only after manual, source-level verification.
 
-### Headline Results
-- **Zero hallucinated citations across all 38 claims** — programmatically verified, not just spot-checked.
-- **Overall match rate: 61.3% (19/31 scored claims)**, excluding 7 claims deliberately left as open questions with no pre-registered ground truth.
-- Match rate by phrasing: 100% misspelling, 71.4% exact-term, 66.7% conversational, 55.0% semantic.
-- Categories reaching 100% match: 'adjunct-vs-standalone', 'omitted-caveat', 'overstated', 'unrelated-treatment'.
+Two match-rate metrics are computed:
+- **Strict match rate: 75.7%** — `actual_verdict == expected_verdict`
+- **Lenient match rate: 89.2%** — `actual_verdict` matches either `expected_verdict` or `acceptable_verdicts`
 
-**A mismatch does not mean a system error** — see findings below.
+The ~14-point gap between the two is itself informative: it separates genuine model error from cases where the evidence legitimately supports more than one reasonable conclusion.
 
----
+Match rate by phrasing: 100% misspelling, 87.5% exact-term, 80.0% conversational, 69.6% semantic.
 
-### Positive Findings (System Behaved Correctly — Original Expectations Were Often the Imprecise Part)
+Verdict distribution across the run: 21 Supported with caveat, 8 Supported, 8 Insufficient evidence, 1 Contradicted. Confidence: 18 High, 14 Medium, 6 Low.
 
-1. **"Supported with caveat" correctly reflects genuine evidence limitations, not treatment status.** Applied Relaxation received a caveat despite being well-established and first-line, because the cited research includes real dropout/relapse data and uncertain mechanism of action. A flat "Supported" would have overstated what the evidence actually shows. The same evidence-driven caveat behavior held for second-line treatments, confirming the system responds to what's actually in the papers rather than defaulting to hedge language based on how established a treatment is.
-
-2. **The system correctly returns a clean "Supported" when a claim's own wording already states its precondition, rather than adding a redundant caveat.** For rTMS and Spravato, both claims already specified "treatment-resistant" the system correctly treated this as already scoped rather than restating it as a caveat. 
-
-3. **The system correctly distinguishes genuine comparative findings from broad category assumptions.** For a sertraline-vs-venlafaxine claim, it correctly identified a specific comparative study (older-adult cohort data) rather than defaulting to a generic "SSRIs and SNRIs are similar" assumption.
-
-4. **The system correctly identifies condition-scope mismatches between a claim and its evidence.** For a claim genericized to "anxiety," where the retrieved evidence was GAD-specific, the system explicitly noted the evidence "primarily concerns specific anxiety disorders like GAD... rather than anxiety in general."
-
-5. **The system correctly captures genuine clinical nuance when a caveat is actually warranted.** For CBT-I, the caveat reflected legitimate methodological questions directly relevant to the claim, including that control groups receiving only antidepressants and basic sleep hygiene also showed improvement, a valid consideration for whether the effect is unique to CBT-I.
+**A mismatch does not mean a system error** — every mismatch was manually investigated against the cited PubMed abstracts before being classified as a system finding, an expected-verdict labeling issue, or confirmation of correct behavior.
 
 ---
 
-### Negative Findings (Real System Limitations)
+## Findings
 
-1. **Explanations sometimes include irrelevant content without scoping its relevance.** In two cases (Buspirone, Bupropion), the explanation included real but off-topic findings (efficacy for a different condition, and a narrow side-effect subgroup) without clarifying these don't have bearing on the core claim.
+### Recurring failure: tangential information misclassified as a caveat
 
-2. **The system doesn't distinguish between caveats that qualify the core claim and caveats about a separate, secondary question.** For Escitalopram, the caveat cited findings about who might respond differently (genetic polymorphisms, oxytocin signaling, sex-specific effects, an unreplicated stress-response predictor) none of which say anything uncertain about whether escitalopram is effective. Two large network meta-analyses already answer that core question decisively.
+Across three separate evaluation rounds, the model repeatedly attached a `caveat` based on content that doesn't actually limit the claim's efficacy — most often: (a) the treatment being second-line/positioned after other options, (b) efficacy for a different condition (e.g., a comorbidity), or (c) comparative language ("comparable to," "not superior to") not invited by the claim itself. Example: a Buspirone claim's caveat repeatedly cited its second-line status relative to SSRIs/SNRIs — true, but not a limitation on whether buspirone works for GAD.
 
-3. **The system may under-use "Insufficient evidence" when any citations exist, regardless of quality.** For Acupuncture (deliberately excluded from search terms, incidentally surfaced via a St. John's Wort query), evidence explicitly described as "low or insufficient due to methodological limitations" still produced "Supported with caveat." This appears to happen because the retrieved evidence frames acupuncture as a known/utilized treatment, and the system seems to weight that clinical-use framing over citations describing the actual evidence of efficacy as low-quality, conflating "this is a recognized treatment option" with "this treatment has been shown to work."
+**Attempted fix:** the system instructions were revised to add explicit negative examples naming these exact patterns. **Result:** the identical violation reproduced on the same claim across all three evaluation rounds following the fix. This is treated as strong evidence that the bug isn't resolvable through prompt wording alone — see "Next Steps."
+
+### Effect-direction handling
+An early version conflated "evidence shows no effect" with "evidence shows the opposite effect" — a claim asserting sleep deprivation *increases* depression symptoms, when the evidence showed it *decreases* them (an antidepressant effect), was returned as "Supported with caveat" instead of "Contradicted." Fixed by adding an explicit opposite-direction clause to the contradiction rule.
+
+### Additional Positive Findings
+
+- **"Supported with caveat" reflects genuine evidence limitations, not treatment status** — e.g., Applied Relaxation received a caveat despite being well-established and first-line, because the cited research includes real dropout/relapse data, not because it's a "lesser" treatment.
+- **The system avoids redundant caveats when a claim's own wording already states its precondition** — for rTMS and Spravato, both claims already specified "treatment-resistant," and the system correctly treated this as already scoped rather than restating it as a caveat.
+- **The system distinguishes genuine comparative findings from broad category assumptions** — for a sertraline-vs-venlafaxine claim, it identified a specific comparative study (older-adult cohort data) rather than defaulting to a generic "SSRIs and SNRIs are similar."
+- **The system correctly identifies condition-scope mismatches between a claim and its evidence** — for a claim genericized to "anxiety" where the evidence was GAD-specific, it explicitly flagged that the evidence "primarily concerns specific anxiety disorders like GAD... rather than anxiety in general."
 
 ---
 
-### Future Work
+## Next Steps
 
-**Prompt/verdict logic refinements** (identified via manual mismatch investigation):
-
-
-- Distinguish "is used clinically" from "has adequate efficacy evidence" in verdict logic, to better calibrate when "Insufficient evidence" is warranted (Acupuncture finding)
-- Add explicit relevance-scoping instructions to reduce off-topic content in generated explanations (Buspirone, Bupropion findings)
-- Add explicit reasoning-before-verdict prompting (asking the model to reason through evidence relevance and strength before committing to a verdict), a standard prompt-engineering technique not yet incorporated.
-- Add a faithfulness/groundedness verification step, a follow-up check confirming that cited abstracts actually support the specific claims made in the explanation (beyond confirming valid citations were retrieved, which is already verified programmatically)
-
-
-**Corpus & retrieval scalability:**
-
-- MeSH-based hierarchical query expansion, or broader condition-level ingestion paired with retrieval-time filtering, instead of manually encoding condition+treatment specificity into the search step, necessary for scaling beyond GAD/MDD to additional conditions.
-- Scheduled corpus refresh pipeline, since the current corpus is a static snapshot from ingestion time.
-
-
-**Deployment:**
-
-- FastAPI backend wrapping the existing evaluation pipeline (/evaluate for single claims, /evaluate_batch for batch upload, preserving the project's core batch-evaluation differentiator)
-- Streamlit frontend for interactive use. Re-run and re-validate the evaluation suite after the prompt refinements above, before building the deployment layer on top.
+- **Escalation/validation agent:** manual review across three rounds shows the tangential-caveat bug persists even after explicit prompt-level correction. The planned next step is a structural second-pass check — reviewing the generated `caveat`/`clinical_notes` split independently before returning a final result, rather than relying on generation-time instruction-following alone. This mirrors the existing citation-hallucination retry loop, which resolved a comparable problem structurally rather than through prompt wording.
+- Add a faithfulness/groundedness check confirming cited abstracts actually support the specific claims made in each finding (beyond confirming citations trace to retrieved evidence, which is already verified).
+- MeSH-based term identification for scaling ingestion to additional conditions, replacing manual literature review as the source of truth for identifying relevant treatments per condition (see Corpus Coverage).
+- Scheduled corpus refresh pipeline (current corpus is a static snapshot).
+- FastAPI + Streamlit deployment layer, after the escalation agent and a final full re-evaluation.
 
 ---
 
 ## Repository Structure
 
 ```
-├── PubMedIngestion.py          # Phase 1: corpus ingestion
-├── QACheckPubMed.py             # Phase 2: corpus QA
-├── ChunkEmbed.py                # Phase 3: chunking + embedding
-├── ClaimEvaluationEngine.py     # Phase 4: claim evaluation
-├── analyze_results.py           # Phase 5: results analysis
+├── PubMedIngestion.py
+├── QACheckPubMed.py
+├── ChunkEmbed.py
+├── ClaimEvaluationEngine.py
+├── QACheckEvaluation.py
 ├── data/
-│   ├── raw_abstracts.json       # Ingested corpus
-│   ├── chroma_db/                # Persistent vector store
-│   ├── evaluation_claims.csv     # 38 hand-curated test claims
-│   ├── evaluation_results.csv    # Full evaluation output
-│   ├── evaluation_summary.csv    # Consolidated metrics
-│   └── mismatches.csv            # Mismatches for manual review
+│   ├── raw_abstracts.json
+│   ├── chroma_db/
+│   ├── claims.csv                     # 38 claims, expected_verdict + acceptable_verdicts
+│   ├── evaluation_results.csv
+│   └── evaluation/
+│       ├── evaluation_summary.csv
+│       ├── mismatches_raw.csv
+│       └── manual_evaluation_of_mismatches/
+│           ├── mismatches_manual_research_round1.csv
+│           ├── mismatches_manual_research_round2.csv
+│           └── mismatches_manual_research_round3.csv
 └── README.md
 ```
