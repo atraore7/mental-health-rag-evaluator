@@ -15,10 +15,17 @@ An end-to-end pipeline that evaluates mental health treatment claims against bio
 
 ---
 
+## Live Demo
+
+The evaluation engine is deployed as a REST API at `https://mentalhealtheval.hopto.org/docs`, where you can test `/evaluate` (single claim) and `/evaluate_batch` (CSV upload) directly. The corpus is curated around Generalized Anxiety Disorder and Major Depressive Disorder treatments, though some adjacent-condition content has leaked in via shared search terms (see Findings) — claims well outside this scope should still be handled correctly (either grounded in whatever relevant content exists, or returning "Insufficient evidence"), rather than hallucinating a connection. Deployed on AWS EC2, running as a persistent `systemd` service behind nginx with a free Let's Encrypt SSL certificate. Uses a free-tier Gemini API key, so there's no billing risk from public traffic — worst case is temporary quota exhaustion.
+
+---
+
 ## Contents
 - [Design Philosophy](#design-philosophy-claim-verification-not-clinical-decision-support)
 - [Output Schema](#output-schema)
 - [Pipeline](#pipeline)
+- [Deployment](#deployment)
 - [Cost](#cost)
 - [Design Decisions](#design-decisions)
 - [Evaluation Methodology](#evaluation-methodology)
@@ -115,6 +122,16 @@ Computes strict and lenient match rate (overall, by phrasing type), confidence/v
 
 ---
 
+## Deployment
+
+The evaluation engine is wrapped in a FastAPI backend (`API.py`) exposing `/evaluate` (single claim) and `/evaluate_batch` (CSV upload), both reusing the existing pipeline functions directly.
+
+**Stack:** AWS EC2 (Ubuntu) → systemd (persistent process management) → nginx (reverse proxy) → Let's Encrypt/Certbot (SSL) → No-IP (custom domain, since certificates require a domain rather than a bare IP).
+
+**A real deployment bug worth noting (one-time, resolved):** due to the local `chroma_db` folder being correctly excluded from git, cloning the repo onto the EC2 instance brought over all the code with none of the actual embedded corpus — and since ChromaDB's collection creation is silently additive (it creates an empty collection rather than erroring if none exists), every query returned zero evidence with no error at all. Caught by comparing `chroma.sqlite3` file size against what 857 real embeddings should produce (188 KB vs. an expected several MB), then resolved by transferring the pre-built local corpus directly via `scp`. This was specific to the initial deploy (a fresh clone with no existing data on the instance) rather than an ongoing risk — once the persistent corpus exists on the instance, this doesn't recur.
+
+---
+
 ## Setup
 
 ```cmd
@@ -198,6 +215,9 @@ Across three separate evaluation rounds, the model repeatedly attached a `caveat
 ### Effect-direction handling
 An early version conflated "evidence shows no effect" with "evidence shows the opposite effect" — a claim asserting sleep deprivation *increases* depression symptoms, when the evidence showed it *decreases* them (an antidepressant effect), was returned as "Supported with caveat" instead of "Contradicted." Fixed by adding an explicit opposite-direction clause to the contradiction rule.
 
+### Corpus scope leakage
+Testing an out-of-scope claim ("Music cures schizophrenia") \revealed the corpus contains retrievable content about schizophrenia treatment, despite schizophrenia never being a deliberate search term — likely pulled in via GAD/MDD queries that also discussed schizophrenia as a comorbid or comparison condition (e.g., shared antipsychotic treatment classes). The system correctly reasoned to "Contradicted" using this leaked content rather than hallucinating a connection, and correctly declined to claim music alone treats schizophrenia. This confirms the corpus isn't as tightly scoped to GAD/MDD as intended, reinforcing the precision concerns already discussed in Corpus Coverage — worth further testing (additional out-of-scope conditions) to gauge how widespread this leakage actually is.
+
 ### Additional Positive Findings
 
 - **"Supported with caveat" reflects genuine evidence limitations, not treatment status** — e.g., Applied Relaxation received a caveat despite being well-established and first-line, because the cited research includes real dropout/relapse data, not because it's a "lesser" treatment.
@@ -213,13 +233,13 @@ An early version conflated "evidence shows no effect" with "evidence shows the o
 - Add a faithfulness/groundedness check confirming cited abstracts actually support the specific claims made in each finding (beyond confirming citations trace to retrieved evidence, which is already verified).
 - MeSH-based term identification for scaling ingestion to additional conditions, replacing manual literature review as the source of truth for identifying relevant treatments per condition (see Corpus Coverage).
 - Scheduled corpus refresh pipeline (current corpus is a static snapshot).
-- FastAPI + Streamlit deployment layer, after the escalation agent and a final full re-evaluation.
-
+- Elastic IP for the EC2 instance, so the domain mapping doesn't break if the instance is ever stopped/restarted.
 ---
 
 ## Repository Structure
 
 ```
+├── API.py
 ├── PubMedIngestion.py
 ├── QACheckPubMed.py
 ├── ChunkEmbed.py
