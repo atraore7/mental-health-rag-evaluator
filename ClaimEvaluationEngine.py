@@ -248,7 +248,37 @@ def get_validated_response(client, claim_id, claim_text, evidence, retrieved_pmi
         system_instructions = system_instructions + correction_instructions
         retries += 1
 
+class ScopeCheckResult(BaseModel):
+    in_scope: bool
+    detected_condition: str | None
 
+def check_corpus_scope(client: genai.Client, claim_text: str) -> str | None:
+    """
+    Ask the model whether the claim concerns GAD/MDD (this is the scope of the corpus) or a different condition.
+    If the claim concerns a different condition, flags this so the user knows the result
+    may reflect incidental leakage rather than delibrate coverage.
+    """
+    prompt = f"""
+    Claim: {claim_text}
+
+    Does this claim primarily concern Generalized Anxiety Disorder (GAD) or Major Depressive Disorder (MDD)?
+    Base your answer on the specific condition the claim is about, not any condition that might be
+    mentioned incidentally. 
+    """
+    response = client.models.generate_content(
+        model=generation_model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=ScopeCheckResult
+        ),
+    )
+    result = ScopeCheckResult.model_validate_json(response.text)
+
+    if not result.in_scope:
+        return f""" Warning: This claim appears to concern {result.detected_condition or 'a condition'} outside this corpus's intended scope (Generalized Anxiety Disorder and Major Depressive Disorder). Any evidence retrieved may have surfaced incidentally through overlapping search terms rather than deliberate coverage."""
+        
+    return None
 
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")

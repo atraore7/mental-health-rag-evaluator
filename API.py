@@ -19,7 +19,8 @@ import chromadb
 
 from ClaimEvaluationEngine import (
     embed_query, retrieve_evidence, get_validated_response,
-    system_instructions, chromadb_path, collection_name, topK
+    system_instructions, chromadb_path, collection_name, topK,
+    check_corpus_scope
 )
 
 app = FastAPI(title="GAD/MDD Treatment Evidence Evaluator API")
@@ -51,9 +52,11 @@ class EvaluateResponse(BaseModel):
     findings: list[dict]
     caveat: str | None
     clinical_notes: str | None
+    citations: list[str]
     confidence: str
     hallucinated_citations: list[str]
     evidence_used: list[EvidenceItem]
+    out_of_scope_warning: str | None
 
 
 class BatchEvaluationResponse(BaseModel):
@@ -67,6 +70,9 @@ def run_single_evaluation(claim_text: str) -> EvaluateResponse:
     """
     Run the claim evaluation engine on a single claim and return the structured response.
     """
+
+    corpus_scope_warning = check_corpus_scope(client, claim_text)
+
     query_embedding = embed_query(client, claim_text)
     evidence = retrieve_evidence(collection, query_embedding, topK)
     retrieved_pubmed_ids = {e["pubmed_id"] for e in evidence}
@@ -82,9 +88,12 @@ def run_single_evaluation(claim_text: str) -> EvaluateResponse:
         findings=[f.model_dump() for f in result.findings],
         caveat=result.caveat,
         clinical_notes=result.clinical_notes,
+        citations=result.citations,
         confidence=result.confidence,
         hallucinated_citations=list(hallucinated_citations),
-        evidence_used=[EvidenceItem(pubmed_id=e["pubmed_id"], title=e["title"], year=e["year"]) for e in evidence]
+        evidence_used=[EvidenceItem(pubmed_id=e["pubmed_id"], title=e["title"], year=e["year"]) for e in evidence],
+        out_of_scope_warning=corpus_scope_warning
+
     )
 
 #---------------------------------
