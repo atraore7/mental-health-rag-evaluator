@@ -10,7 +10,7 @@ An end-to-end pipeline that evaluates mental health treatment claims against bio
 
 - **What it does:** Evaluates treatment-efficacy claims about Generalized Anxiety Disorder (GAD)/Major Depressive Disorder (MDD) against ~857 PubMed abstracts, returning a structured verdict (Supported / Supported with caveat / Contradicted / Insufficient evidence), a per-finding citation trail, and separate fields for genuine efficacy caveats vs. tangential clinical context.
 - **Scope:** This system evaluates whether a specific treatment-efficacy claim is supported by the evidence — it does not recommend the best treatment for a patient, and is not a substitute for clinical judgment. See "Design Philosophy" below.
-- **Stack:** PubMed API → Gemini embeddings → ChromaDB → Gemini LLM (structured output via Pydantic) → pandas-based evaluation analysis.
+- **Stack:** PubMed API → Gemini embeddings → ChromaDB → Gemini LLM (structured output via Pydantic) → pandas-based evaluation analysis, wrapped in a FastAPI backend deployed on AWS EC2.
 - **Result:** Evaluated on 38 hand-curated claims across multiple runs. Zero hallucinated citations across all evaluated claims (programmatically verified via a retry-and-correct loop). **75.7% strict match rate (28/37 scored claims)**, rising to **89.2%** when accounting for claims with genuinely defensible alternate verdicts identified through manual, source-level review (see "Evaluation Methodology"). That review also surfaced a recurring caveat-classification bug that resisted prompt-only fixes — see "Findings" below.
 
 ---
@@ -63,7 +63,10 @@ This distinction was refined iteratively through manual, source-level review —
 | Data source | PubMed (NCBI E-utilities API) |
 | Embeddings | Gemini Embeddings API (gemini-embedding-001) |
 | Vector store | ChromaDB |
-| LLM (evaluation/generation) | Gemini API (gemini-2.5-flash / gemini-2.5-flash-lite) |
+| LLM (evaluation/generation) | Gemini API (gemini-2.5-flash-lite) |
+| API layer | FastAPI |
+| Deployment | AWS EC2, systemd, nginx (reverse proxy) |
+| SSL / domain | Let's Encrypt (Certbot), No-IP |
 | Data validation | pandas |
 | Version control | GitHub |
 
@@ -71,13 +74,14 @@ This distinction was refined iteratively through manual, source-level review —
 
 ## Cost
 
-This project uses the paid Gemini API tier for evaluation and the free tier for embeddings.
+Embeddings run on the free tier throughout. Generation/evaluation uses different tiers depending on context:
 
-- **Full evaluation run (38 claims):** approximately **$0.03** per complete run, including any additional API calls triggered by the citation-hallucination retry logic (see `evaluate_claim_with_retry` in ClaimEvaluationEngine.py).
+- **Local batch evaluation (38 claims):** paid tier — approximately **$0.03** per complete run, including any additional API calls triggered by the citation-hallucination retry logic (see `evaluate_claim_with_retry` in ClaimEvaluationEngine.py).
+- **Live deployed API** (`https://mentalhealtheval.hopto.org`): free tier — no billing risk from public traffic. Trade-off: lower rate limits mean the live demo can occasionally return a 429 ("quota exceeded") under moderate use, since free-tier request limits are meaningfully lower than paid.
 - **Embedding (one-time):** ~857 PubMed abstracts embedded via `gemini-embedding-001` on the free tier — no cost, re-run only when the corpus itself changes.
 - **Models used:** `gemini-2.5-flash-lite` for generation/evaluation, `gemini-embedding-001` for embeddings.
 
-At this cost, the full evaluation suite can be re-run cheaply and often — which is what made the iterative, multi-round manual review process (see Findings below) practical in the first place.
+At $0.03/run for local evaluation, the full evaluation suite can be re-run cheaply and often — which is what made the iterative, multi-round manual review process (see Findings below) practical in the first place. The live deployment intentionally uses the free tier instead, so public traffic carries no billing exposure.
 
 ---
 
@@ -100,6 +104,11 @@ class Verdict(BaseModel):
 ```
 
 `citations` is deliberately **not** filled in by the model directly — it's derived after parsing by flattening every `Finding`'s `cited_pmids`, guaranteeing it can never drift from what's actually cited in the reasoning (an earlier version had this exact bug: a citation referenced in the explanation text but missing from the citations list).
+
+**The API layer (`API.py`) adds one additional field on top of this schema:**
+```python
+out_of_scope_warning: str | None   # flags claims outside GAD/MDD scope; evidence may reflect incidental leakage rather than deliberate coverage
+```
 
 ---
 
@@ -129,6 +138,8 @@ The evaluation engine is wrapped in a FastAPI backend (`API.py`) exposing `/eval
 **Stack:** AWS EC2 (Ubuntu) → systemd (persistent process management) → nginx (reverse proxy) → Let's Encrypt/Certbot (SSL) → No-IP (custom domain, since certificates require a domain rather than a bare IP).
 
 **A real deployment bug worth noting (one-time, resolved):** due to the local `chroma_db` folder being correctly excluded from git, cloning the repo onto the EC2 instance brought over all the code with none of the actual embedded corpus — and since ChromaDB's collection creation is silently additive (it creates an empty collection rather than erroring if none exists), every query returned zero evidence with no error at all. Caught by comparing `chroma.sqlite3` file size against what 857 real embeddings should produce (188 KB vs. an expected several MB), then resolved by transferring the pre-built local corpus directly via `scp`. This was specific to the initial deploy (a fresh clone with no existing data on the instance) rather than an ongoing risk — once the persistent corpus exists on the instance, this doesn't recur.
+
+**API robustness:** since the deployed API is public and free-tier (see Cost), it will predictably hit quota limits under real traffic. Quota-exhaustion errors are caught explicitly and returned as HTTP 429 with a clear message telling the user to try again later, rather than an opaque 500 that looks like something is broken.
 
 ---
 
@@ -180,7 +191,6 @@ The 38-claim evaluation set was designed to test more than factual accuracy:
 - **Standalone-vs-adjunct framing is tested directly**, using the same drug/condition pair with only the framing changed.
 - **Expected verdicts are pre-registered hypotheses**, set before running the pipeline, not adjusted after seeing results — disagreements are treated as informative in either direction.
 
-
 ### Evaluation Engine System Instructions
 The system instructions combine standard prompt-engineering practices (clear rules, explicit examples, structured output via Pydantic) with rule-level revisions driven directly by problems found through repeated testing — the current 11-rule set is the result of multiple rounds of running the evaluation, manually reviewing mismatches against source abstracts, and revising specific rules in response. Notable examples: rule 3 was tightened twice after the same tangential-caveat error (second-line positioning, cross-condition efficacy, comparative language) recurred across separate evaluation runs; rule 10 was revised after a claim's evidence showing an effect in the *opposite* direction from what was claimed was initially misclassified as "Supported with caveat" instead of "Contradicted"; rule 9 was expanded after "Insufficient evidence" was under-used when any citations existed, regardless of evidence quality. See "Findings" for the specific evidence behind each of these.
 
@@ -216,7 +226,8 @@ Across three separate evaluation rounds, the model repeatedly attached a `caveat
 An early version conflated "evidence shows no effect" with "evidence shows the opposite effect" — a claim asserting sleep deprivation *increases* depression symptoms, when the evidence showed it *decreases* them (an antidepressant effect), was returned as "Supported with caveat" instead of "Contradicted." Fixed by adding an explicit opposite-direction clause to the contradiction rule.
 
 ### Corpus scope leakage
-Testing an out-of-scope claim ("Music cures schizophrenia") \revealed the corpus contains retrievable content about schizophrenia treatment, despite schizophrenia never being a deliberate search term — likely pulled in via GAD/MDD queries that also discussed schizophrenia as a comorbid or comparison condition (e.g., shared antipsychotic treatment classes). The system correctly reasoned to "Contradicted" using this leaked content rather than hallucinating a connection, and correctly declined to claim music alone treats schizophrenia. This confirms the corpus isn't as tightly scoped to GAD/MDD as intended, reinforcing the precision concerns already discussed in Corpus Coverage — worth further testing (additional out-of-scope conditions) to gauge how widespread this leakage actually is.
+Testing an out-of-scope claim ("Music cures schizophrenia") revealed the corpus contains retrievable content about schizophrenia treatment, despite schizophrenia never being a deliberate search term — likely pulled in via GAD/MDD queries that also discussed schizophrenia as a comorbid or comparison condition (e.g., shared antipsychotic treatment classes). The system correctly reasoned to "Contradicted" using this leaked content rather than hallucinating a connection. Since checking retrieved evidence's metadata tags didn't reliably catch this (a chunk tagged GAD/MDD can still discuss an unrelated condition), a dedicated scope check was added: a small model call asks whether the claim itself concerns GAD/MDD, returning an `out_of_scope_warning` field on the API response when it doesn't, so the user is alerted that results may reflect incidental leakage rather than deliberate coverage.
+
 
 ### Additional Positive Findings
 
@@ -234,6 +245,7 @@ Testing an out-of-scope claim ("Music cures schizophrenia") \revealed the corpus
 - MeSH-based term identification for scaling ingestion to additional conditions, replacing manual literature review as the source of truth for identifying relevant treatments per condition (see Corpus Coverage).
 - Scheduled corpus refresh pipeline (current corpus is a static snapshot).
 - Elastic IP for the EC2 instance, so the domain mapping doesn't break if the instance is ever stopped/restarted.
+
 ---
 
 ## Repository Structure
@@ -245,6 +257,7 @@ Testing an out-of-scope claim ("Music cures schizophrenia") \revealed the corpus
 ├── ChunkEmbed.py
 ├── ClaimEvaluationEngine.py
 ├── QACheckEvaluation.py
+├── requirements.txt
 ├── data/
 │   ├── raw_abstracts.json
 │   ├── chroma_db/
