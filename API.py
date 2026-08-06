@@ -70,18 +70,27 @@ def run_single_evaluation(claim_text: str) -> EvaluateResponse:
     """
     Run the claim evaluation engine on a single claim and return the structured response.
     """
-
-    corpus_scope_warning = check_corpus_scope(client, claim_text)
-
+    try:
+        corpus_scope_warning = check_corpus_scope(client, claim_text)
+    except Exception as e:
+            if "RESOURCE_EXHAUSTED" in str(e):
+                raise HTTPException(status_code=429, detail="API rate limit exceeded. Please try again later.")
+            raise HTTPException(status_code=500, detail="An error occurred while evaluating the claim.")
+        
     query_embedding = embed_query(client, claim_text)
     evidence = retrieve_evidence(collection, query_embedding, topK)
     retrieved_pubmed_ids = {e["pubmed_id"] for e in evidence}
 
-    result, hallucinated_citations = get_validated_response(
+    try:
+        result, hallucinated_citations = get_validated_response(
         client, claim_id="api_call", claim_text=claim_text, evidence=evidence, 
         retrieved_pmids=retrieved_pubmed_ids, system_instructions=system_instructions
     )
-
+    except Exception as e:
+        if "RESOURCE_EXHAUSTED" in str(e):
+            raise HTTPException(status_code=429, detail="API rate limit exceeded. Please try again later.")
+        raise HTTPException(status_code=500, detail="An error occurred while evaluating the claim.")
+    
     return EvaluateResponse(
         claim=claim_text,
         verdict=result.verdict,
